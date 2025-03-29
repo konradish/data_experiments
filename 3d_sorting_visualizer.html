@@ -1189,17 +1189,35 @@
 
                     let material;
                     try {
+                        // Create more reflective material
                         material = new THREE.MeshStandardMaterial({
                             color: baseColor,
                             emissive: emissiveColor,
-                            emissiveIntensity: Math.min(emissiveIntensity, 3.0), // Clamp intensity
-                            metalness: 0.3,
-                            roughness: 0.4,
-                            envMapIntensity: 0.5 // Enhance reflections
+                            emissiveIntensity: Math.min(emissiveIntensity, 3.0),
+                            metalness: 0.8, // Increased metalness for stronger reflections
+                            roughness: 0.2, // Lower roughness for shinier surface
+                            envMapIntensity: 1.2, // Stronger environment map influence
+                            side: THREE.DoubleSide // Render both sides for better reflections
                         });
+
+                        // Add environment map if not already present
+                        if (!this.scene.environment) {
+                            const envLoader = new THREE.PMREMGenerator(this.renderer);
+                            const envTexture = new THREE.TextureLoader().load(
+                                'https://threejs.org/examples/textures/equirectangular/venice_sunset_1k.hdr',
+                                (texture) => {
+                                    const envMap = envLoader.fromEquirectangular(texture).texture;
+                                    this.scene.environment = envMap;
+                                    texture.dispose();
+                                }
+                            );
+                        }
                     } catch (e) {
-                        console.warn("Failed to create advanced material, using fallback:", e);
-                        material = new THREE.MeshBasicMaterial({ color: baseColor });
+                        console.warn("Failed to create reflective material, using fallback:", e);
+                        material = new THREE.MeshBasicMaterial({ 
+                            color: baseColor,
+                            envMap: this.scene.environment
+                        });
                     }
 
                     // Create main bar
