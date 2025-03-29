@@ -45,9 +45,9 @@
             <li>Movement tracking with color fading</li>
             <li>3D time progression to observe patterns</li>
         </ul>
-        <p>Rotate: Left-click + drag</p>
+        <p>Rotate: Right-click + drag</p> 
         <p>Zoom: Scroll wheel</p>
-        <p>Pan: Right-click + drag</p>
+        <p>Pan: Left-click + drag</p> 
     </div>
     <div id="controls">
         <h3>Controls</h3>
@@ -1381,77 +1381,76 @@
                 }
                 
                 // Merge temp arrays back into array[left..right]
-                let i = 0;
-                let j = 0;
-                let i = 0; // index for L
-                let j = 0; // index for R
+                // Use different variable names for the merge loop indices
+                let idxL = 0; // index for L
+                let idxR = 0; // index for R
                 let k = left; // index for merged array
                 let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
 
                 // State before merge loop exists (arrays[stepCounter])
                 // Record initial comparison for the *next* state
-                this.comparisons[stepCounter] = (i < n1 && j < n2) ? [left + i, mid + 1 + j] : null;
+                this.comparisons[stepCounter] = (idxL < n1 && idxR < n2) ? [left + idxL, mid + 1 + idxR] : null;
                 this.movements[stepCounter] = null;
                 
-                while (i < n1 && j < n2) {
+                while (idxL < n1 && idxR < n2) {
                     // Record comparison for the *next* state
-                    this.comparisons[stepCounter] = [left + i, mid + 1 + j];
+                    this.comparisons[stepCounter] = [left + idxL, mid + 1 + idxR];
                     this.movements[stepCounter] = null; // No movement yet for comparison step
                     
                     // Record state showing the comparison
                     this.arrays.push([...array]); 
                     stepCounter++;
 
-                    if (L[i] <= R[j]) {
+                    if (L[idxL] <= R[idxR]) {
                         // Check if a move/write is actually happening
-                        if (array[k] !== L[i]) {
+                        if (array[k] !== L[idxL]) {
                             // Record movement (write from L) for the *next* state
                             this.comparisons[stepCounter] = null; 
-                            this.movements[stepCounter] = [k, left + i]; // Target k, Source (conceptual) left+i
+                            this.movements[stepCounter] = [k, left + idxL]; // Target k, Source (conceptual) left+idxL
                             
-                            array[k] = L[i];
+                            array[k] = L[idxL];
                             
                             // Record array state *after* write
                             this.arrays.push([...array]);
                             stepCounter++;
                         }
-                        i++;
+                        idxL++;
                     } else {
                          // Check if a move/write is actually happening
-                        if (array[k] !== R[j]) {
+                        if (array[k] !== R[idxR]) {
                             // Record movement (write from R) for the *next* state
                             this.comparisons[stepCounter] = null;
-                            this.movements[stepCounter] = [k, mid + 1 + j]; // Target k, Source (conceptual) mid+1+j
+                            this.movements[stepCounter] = [k, mid + 1 + idxR]; // Target k, Source (conceptual) mid+1+idxR
                             
-                            array[k] = R[j];
+                            array[k] = R[idxR];
                             
                             // Record array state *after* write
                             this.arrays.push([...array]);
                             stepCounter++;
                         }
-                        j++;
+                        idxR++;
                     }
                     k++;
                      // Record comparison for the *next* iteration (if loop continues)
-                     this.comparisons[stepCounter] = (i < n1 && j < n2) ? [left + i, mid + 1 + j] : null;
+                     this.comparisons[stepCounter] = (idxL < n1 && idxR < n2) ? [left + idxL, mid + 1 + idxR] : null;
                      this.movements[stepCounter] = null; // Reset movement
                 }
                 
                 // Copy remaining elements of L[] if any
-                while (i < n1) {
+                while (idxL < n1) {
                      // Check if a move/write is actually happening
-                    if (array[k] !== L[i]) {
+                    if (array[k] !== L[idxL]) {
                         // Record movement for the *next* state
                         this.comparisons[stepCounter] = null;
-                        this.movements[stepCounter] = [k, left + i];
+                        this.movements[stepCounter] = [k, left + idxL];
                         
-                        array[k] = L[i];
+                        array[k] = L[idxL];
                         
                         // Record array state after change
                         this.arrays.push([...array]);
                         stepCounter++;
                     }
-                    i++;
+                    idxL++;
                     k++;
                      // Nullify comparison/movement for next state within this loop
                      this.comparisons[stepCounter] = null;
@@ -1459,20 +1458,20 @@
                 }
                 
                 // Copy remaining elements of R[] if any
-                while (j < n2) {
+                while (idxR < n2) {
                      // Check if a move/write is actually happening
-                    if (array[k] !== R[j]) {
+                    if (array[k] !== R[idxR]) {
                         // Record movement for the *next* state
                         this.comparisons[stepCounter] = null;
-                        this.movements[stepCounter] = [k, mid + 1 + j];
+                        this.movements[stepCounter] = [k, mid + 1 + idxR];
                         
-                        array[k] = R[j];
+                        array[k] = R[idxR];
                         
                         // Record array state after change
                         this.arrays.push([...array]);
                         stepCounter++;
                     }
-                    j++;
+                    idxR++;
                     k++;
                      // Nullify comparison/movement for next state within this loop
                      this.comparisons[stepCounter] = null;
