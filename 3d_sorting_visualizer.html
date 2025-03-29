@@ -935,14 +935,18 @@
                     this.isUserInteracting = false; 
                 });
                 
-                // Add subtle ambient light to complement emissive materials
-                const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
+                // Enhanced lighting setup
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Brighter ambient
                 this.scene.add(ambientLight);
                 
-                // Add directional light for subtle shadows
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-                directionalLight.position.set(0, 50, 0);
-                this.scene.add(directionalLight);
+                // Stronger directional light from multiple angles
+                const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+                directionalLight1.position.set(1, 1, 1).normalize();
+                this.scene.add(directionalLight1);
+                
+                const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight2.position.set(-1, 0.5, -1).normalize();
+                this.scene.add(directionalLight2);
                 
                 // Add grid with extended size
                 const gridHelper = new THREE.GridHelper(400, 40, 0x555555, 0x333333);
@@ -1126,21 +1130,22 @@
 
                     // Emissive intensity based on proximity (1 = correct, 0 = furthest)
                     const proximity = 1.0 - normalizedDistance;
-                    // Non-linear scale with higher intensity for correct positions
-                    const emissiveIntensity = Math.pow(proximity, 3) * 1.5; // Max intensity 1.5
+                    // More aggressive non-linear scale for stronger glow
+                    const emissiveIntensity = Math.pow(proximity, 4) * 3.0; // Max intensity 3.0
                     
-                    // Blend emissive color towards white as proximity increases
+                    // Blend emissive color towards bright white as proximity increases
                     const emissiveColor = baseColor.clone().lerp(
                         new THREE.Color(0xffffff), 
-                        Math.pow(proximity, 2)
+                        Math.pow(proximity, 1.5) // Faster transition to white
                     );
 
                     const material = new THREE.MeshStandardMaterial({
                         color: baseColor,
                         emissive: emissiveColor,
                         emissiveIntensity: emissiveIntensity,
-                        // metalness: 0.1, // Optional: Adjust appearance
-                        // roughness: 0.6 // Optional: Adjust appearance
+                        metalness: 0.3,
+                        roughness: 0.4,
+                        envMapIntensity: 0.5 // Enhance reflections
                     });
 
                     const bar = new THREE.Mesh(geometry, material);
@@ -1799,14 +1804,28 @@
                         const points = curve.getPoints(20);
                         const geometry = new THREE.BufferGeometry().setFromPoints(points);
                         
+                        // Create a gradient material for movement arcs
                         const material = new THREE.LineBasicMaterial({
-                            color: 0xff00ff, // Bright Pink
-                            linewidth: 2,
+                            color: 0x00ff88, // Bright teal for movement
+                            linewidth: 3,
                             transparent: true,
-                            opacity: 0.9,
-                            dashSize: 0.5,
-                            gapSize: 0.2
+                            opacity: 0.95,
+                            dashSize: 0.3,
+                            gapSize: 0.1
                         });
+                        
+                        // Add a second, thinner arc in complementary color
+                        const highlightMaterial = new THREE.LineBasicMaterial({
+                            color: 0xffaa00, // Gold highlight
+                            linewidth: 1,
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        
+                        const highlightLine = new THREE.Line(geometry, highlightMaterial);
+                        highlightLine.userData = { type: 'movementTrail' };
+                        this.scene.add(highlightLine);
+                        this.movementTrails.push(highlightLine);
                         
                         const line = new THREE.Line(geometry, material);
                         line.userData = { type: 'movementTrail' }; // Tag for removal
