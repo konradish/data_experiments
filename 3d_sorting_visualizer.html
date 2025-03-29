@@ -1109,36 +1109,28 @@
                     const distanceFromCorrect = Math.abs(index - correctIndex);
                     const normalizedDistance = 1 - (distanceFromCorrect / this.dataSize);
                     
-                    // Color and Emissive based on closeness to correct position
-                    const hue = (value / this.dataSize) * 0.8; // Base hue on value
-                    let color = new THREE.Color();
-                    let emissiveColor = new THREE.Color();
+                    // Define a single base color for all bars
+                    const baseColor = new THREE.Color(0x8888ff); // A light blue-ish color
+                    
+                    // Emissive intensity based solely on correctness
                     let emissiveIntensity = 0;
-
                     if (distanceFromCorrect === 0) {
-                        // Perfect position - bright color with strong glow
-                        const lightness = 0.8; // Bright base color
-                        color.setHSL(hue, 1.0, lightness);
-                        emissiveColor.copy(color); // Glow with the same color
-                        emissiveIntensity = 0.8; // Strong glow
+                        // Perfect position - strong glow
+                        emissiveIntensity = 0.9; 
                     } else {
-                        // Incorrect position - dimmer color, glow based on closeness
-                        // Base lightness lower when incorrect
-                        const baseLightness = 0.4; 
-                        // Additional lightness based on closeness (0 = far, 0.3 = close)
-                        const closenessLightness = normalizedDistance * 0.3; 
-                        color.setHSL(hue, 1.0, baseLightness + closenessLightness);
-                        
-                        emissiveColor.copy(color); // Glow with the bar's color
-                        // Emissive intensity based on closeness (0 = far, 0.5 = close)
-                        emissiveIntensity = normalizedDistance * 0.5; 
+                        // Incorrect position - glow based on closeness
+                        // Emissive intensity based on closeness (0 = far, 0.6 = close)
+                        emissiveIntensity = normalizedDistance * 0.6; 
                     }
                     
+                    // Emissive color matches the base color
+                    const emissiveColor = baseColor.clone(); 
+                    
                     const material = new THREE.MeshStandardMaterial({ 
-                        color: color,
-                        emissive: emissiveColor,
-                        emissiveIntensity: emissiveIntensity
-                        // metalness: 0.1, // Optional: Adjust material properties
+                        color: baseColor, // Use the constant base color
+                        emissive: emissiveColor, // Emissive color is the same as base
+                        emissiveIntensity: emissiveIntensity // Intensity varies
+                        // metalness: 0.1, 
                         // roughness: 0.6
                     });
                     
