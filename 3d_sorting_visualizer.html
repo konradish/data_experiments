@@ -32,6 +32,65 @@
             padding: 5px;
             width: 100%;
         }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 5px;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .collapsible-header::after {
+            content: '[-]'; /* Collapse symbol */
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .collapsed .collapsible-header::after {
+            content: '[+]'; /* Expand symbol */
+        }
+        .collapsed .collapsible-content {
+            display: none;
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            #info, #controls {
+                position: relative; /* Change from absolute */
+                width: 90%;
+                max-width: none;
+                top: auto;
+                left: auto;
+                right: auto;
+                margin: 10px auto; /* Center the panels */
+                float: none; /* Ensure they don't float */
+                font-size: 14px; /* Slightly smaller font */
+            }
+            #info { order: 1; } /* Optional: Control order on mobile */
+            #controls { order: 2; }
+            body { display: flex; flex-direction: column; } /* Allow panels to stack */
+            canvas { order: 0; } /* Keep canvas first */
+        }
+        @media (max-width: 480px) {
+             #info, #controls {
+                 font-size: 12px;
+                 padding: 8px;
+             }
+             select, button {
+                 padding: 8px; /* Easier tapping */
+                 font-size: 12px;
+             }
+             .collapsible-header {
+                 padding: 8px;
+             }
+             /* Optionally collapse by default on very small screens */
+             /*
+             #info, #controls {
+                 &.collapsed .collapsible-content { display: none; }
+             }
+             */
+        }
     </style>
 </head>
 <body>
@@ -49,11 +108,13 @@
         <p>Zoom: Scroll wheel</p>
         <p>Pan: Left-click + drag</p> 
     </div>
-    <div id="controls">
-        <h3>Controls</h3>
-        <select id="algorithm">
-            <option value="bubble">Bubble Sort</option>
-            <option value="insertion">Insertion Sort</option>
+    <div id="controls"> <!-- Add 'collapsed' class here to start collapsed -->
+        <h4 class="collapsible-header">Controls</h4>
+        <div class="collapsible-content">
+            <h3>Settings</h3>
+            <select id="algorithm">
+                <option value="bubble">Bubble Sort</option>
+                <option value="insertion">Insertion Sort</option>
             <option value="selection">Selection Sort</option>
             <option value="quick">Quick Sort</option>
             <option value="merge">Merge Sort</option>
@@ -79,6 +140,7 @@
         <div>
             <label>Animation Speed: <input type="range" id="speed" min="1" max="10" value="5"></label>
         </div>
+        </div> <!-- Close collapsible-content -->
     </div>
 
     <!-- Import Three.js library and dependencies -->
@@ -828,8 +890,9 @@
                 
                 // Camera setup - more overhead angle
                 this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-                this.camera.position.set(30, 120, 30);
-                this.camera.lookAt(0, 0, 0);
+                // Start slightly ahead (more negative Z)
+                this.camera.position.set(0, 80, -50); 
+                this.camera.lookAt(0, 0, -70); // Look slightly further ahead initially
                 
                 // Initialize camera target state
                 this.cameraTarget.position.copy(this.camera.position);
@@ -935,6 +998,18 @@
                     this.camera.updateProjectionMatrix();
                     this.renderer.setSize(window.innerWidth, window.innerHeight);
                 });
+
+                // Add listeners for collapsible panels
+                document.querySelectorAll('.collapsible-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        header.parentElement.classList.toggle('collapsed');
+                    });
+                });
+                // Optional: Start collapsed on mobile?
+                // if (window.innerWidth <= 768) {
+                //     document.getElementById('info').classList.add('collapsed');
+                //     document.getElementById('controls').classList.add('collapsed');
+                // }
             },
             
             generateData() {
@@ -1875,14 +1950,14 @@
                             offset.copy(this.camera.position).sub(this.controls.target); // Get current offset
                             offset.normalize().multiplyScalar(cameraDistance); // Scale offset to desired distance
 
-                            // Simple overhead positioning:
+                            // Position camera *ahead* of the lookAt point (further negative Z)
                             this.cameraTarget.position.set(
                                 0, // Center X
-                                cameraHeight, 
-                                this.cameraTarget.lookAt.z + cameraDistance * 0.7 // Position behind lookAt Z
+                                cameraHeight * 0.8, // Slightly lower angle than directly overhead
+                                this.cameraTarget.lookAt.z - cameraDistance * 0.9 // Position AHEAD (more negative Z)
                             ); 
                             
-                            // Alternative: Maintain current horizontal angle (using spherical coords could be smoother)
+                            // Alternative: Maintain current horizontal angle but position ahead
                             // let currentAngle = Math.atan2(this.camera.position.x - this.controls.target.x, this.camera.position.z - this.controls.target.z);
                             // this.cameraTarget.position.set(
                             //     this.cameraTarget.lookAt.x + Math.sin(currentAngle) * cameraDistance * 0.8, 
@@ -1920,9 +1995,11 @@
                 // Generate new data
                 this.generateData();
                 
-                // Reset camera target for smooth interpolation
-                this.cameraTarget.position.set(30, 120, 30);
-                this.cameraTarget.lookAt.set(0, 0, 0);
+                // Reset camera target to initial 'ahead' view
+                const initialCamPos = new THREE.Vector3(0, 80, -50);
+                const initialLookAt = new THREE.Vector3(0, 0, -70);
+                this.cameraTarget.position.copy(initialCamPos);
+                this.cameraTarget.lookAt.copy(initialLookAt);
                 
                 // Force immediate camera reset without interpolation
                 this.camera.position.copy(this.cameraTarget.position);
