@@ -1731,10 +1731,9 @@
 
             // Clears only movement trails (used by updateVisualization)
             clearMovementTrails() {
-                this.movementTrails.forEach(obj => {
-                    // Only remove trails that should not persist
-                    if (!obj.userData.persistFor || 
-                        (this.currentStep - obj.userData.stepCreated) >= obj.userData.persistFor) {
+                // Only clear trails during reset - otherwise they persist
+                if (!this.isAnimating) {
+                    this.movementTrails.forEach(obj => {
                         if (obj.geometry) obj.geometry.dispose();
                         if (obj.material) {
                             if (Array.isArray(obj.material)) {
@@ -1744,13 +1743,9 @@
                             }
                         }
                         this.scene.remove(obj);
-                    }
-                });
-                
-                // Filter out removed trails from the array
-                this.movementTrails = this.movementTrails.filter(obj => 
-                    this.scene.children.includes(obj)
-                );
+                    });
+                    this.movementTrails = [];
+                }
             },
 
             // Updates visualization elements (lines, trails) for the CURRENT step
@@ -1948,25 +1943,26 @@
                             opacity: 0.8
                         });
                         
-                        // Create main arc
+                        // Create main arc that persists until reset
                         const mainLine = new THREE.Line(geometry, material);
                         mainLine.userData = {
                             type: 'movementTrail',
                             stepCreated: this.currentStep,
                             fromIndex: idx1,
-                            toIndex: idx2
+                            toIndex: idx2,
+                            persistFor: Infinity // Never auto-remove
                         };
                         this.scene.add(mainLine);
                         this.movementTrails.push(mainLine);
 
-                        // Create highlight arc
+                        // Create highlight arc that also persists
                         const highlightLine = new THREE.Line(geometry, highlightMaterial);
                         highlightLine.userData = {
                             type: 'movementTrail',
                             stepCreated: this.currentStep,
                             fromIndex: idx1,
                             toIndex: idx2,
-                            persistFor: 3
+                            persistFor: Infinity // Never auto-remove
                         };
                         this.scene.add(highlightLine);
                         this.movementTrails.push(highlightLine);
