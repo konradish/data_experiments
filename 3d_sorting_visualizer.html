@@ -1101,39 +1101,34 @@
                 array.forEach((value, index) => {
                     const height = (value / this.dataSize) * maxHeight;
                     const geometry = new THREE.BoxGeometry(barWidth, height, barWidth);
-                    
-                    // Calculate how far this element is from its correct position
-                    // For most sorts, the correct position is where value = index+1 
-                    // (assuming 1-based values from 1 to dataSize)
+
+                    // Calculate how far this element is from its correct sorted position.
+                    // Assuming values are 1 to dataSize, the correct index is value - 1.
                     const correctIndex = value - 1;
                     const distanceFromCorrect = Math.abs(index - correctIndex);
-                    const normalizedDistance = 1 - (distanceFromCorrect / this.dataSize);
-                    
-                    // Define a single base color for all bars
+                    // Normalize distance: 0 means correct position, 1 means furthest possible.
+                    const normalizedDistance = distanceFromCorrect / (this.dataSize - 1); // Max distance is dataSize - 1
+
+                    // Base color for the bar
                     const baseColor = new THREE.Color(0x8888ff); // A light blue-ish color
-                    
-                    // Emissive intensity based solely on correctness
-                    let emissiveIntensity = 0;
-                    if (distanceFromCorrect === 0) {
-                        // Perfect position - strong glow
-                        emissiveIntensity = 0.9; 
-                    } else {
-                        // Incorrect position - glow based on closeness
-                        // Emissive intensity based on closeness (0 = far, 0.6 = close)
-                        emissiveIntensity = normalizedDistance * 0.6; 
-                    }
-                    
-                    // Emissive color matches the base color
-                    const emissiveColor = baseColor.clone(); 
-                    
-                    const material = new THREE.MeshStandardMaterial({ 
-                        color: baseColor, // Use the constant base color
-                        emissive: emissiveColor, // Emissive color is the same as base
-                        emissiveIntensity: emissiveIntensity // Intensity varies
-                        // metalness: 0.1, 
-                        // roughness: 0.6
+
+                    // Emissive intensity based on proximity (1 = correct, 0 = furthest)
+                    // Use a non-linear scale (e.g., power) to make the glow more pronounced for correct items.
+                    const proximity = 1.0 - normalizedDistance;
+                    const emissiveIntensity = Math.pow(proximity, 2) * 0.9; // Max intensity 0.9
+
+                    // Emissive color can be the base color or white for a brighter glow
+                    const emissiveColor = baseColor.clone(); // Glow with the base color
+                    // const emissiveColor = new THREE.Color(0xffffff); // Alternative: White glow
+
+                    const material = new THREE.MeshStandardMaterial({
+                        color: baseColor,
+                        emissive: emissiveColor,
+                        emissiveIntensity: emissiveIntensity,
+                        // metalness: 0.1, // Optional: Adjust appearance
+                        // roughness: 0.6 // Optional: Adjust appearance
                     });
-                    
+
                     const bar = new THREE.Mesh(geometry, material);
                     
                     // Position bar
@@ -1144,16 +1139,17 @@
                     bar.userData = {
                         type: 'arrayBar',
                         value: value,
-                        originalIndex: index, // Keep original index
+                        originalIndex: index,
                         currentIndex: index, // Current index within this step's group
                         step: step,
-                        correctPosition: (index === correctIndex),
-                        lastMoved: -1, // Step number when this bar was last involved in a move
-                        baseColor: baseColor.clone(), // Store the calculated base color
-                        baseEmissive: emissiveColor.clone(), // Store base emissive color
-                        baseEmissiveIntensity: emissiveIntensity // Store base emissive intensity
+                        value: value,
+                        isCorrectPosition: (distanceFromCorrect === 0), // Store if it's in the final correct spot
+                        // Store base material properties if needed for other effects later
+                        baseColor: baseColor.clone(),
+                        baseEmissive: emissiveColor.clone(),
+                        baseEmissiveIntensity: emissiveIntensity
                     };
-                    
+
                     stepGroup.add(bar);
                 });
                 
@@ -1634,17 +1630,16 @@
                 this.movementTrails = []; // Clear the array reference
             },
 
-            // Updates colors, adds/removes lines/trails for the CURRENT step
+            // Updates visualization elements (lines, trails) for the CURRENT step
             updateVisualization() {
-                // --- 1. Bar Appearance is Static Based on Correctness ---
-                // The color/emissive properties are set in createArrayBars based on correctness
-                // and are no longer changed dynamically here based on movement/fading.
+                // Bar appearance (color/glow) is now static per step, set in createArrayBars.
+                // We only need to manage comparison lines and movement trails here.
 
-                // --- 2. Clear Previous Movement Trails ONLY ---
-                // Comparison lines are now persistent until a full reset.
+                // --- 1. Clear Previous Movement Trails ONLY ---
+                // Comparison lines persist until a full reset.
                 this.clearMovementTrails();
-                
-                // --- 3. Get Bars for the Current Step ---
+
+                // --- 2. Get Bars for the Current Step ---
                 const currentStepZ = -this.currentStep * 5;
                 const currentStepGroup = this.scene.children.find(child => 
                     child.type === 'Group' && Math.abs(child.position.z - currentStepZ) < 0.1);
@@ -1756,17 +1751,15 @@
 
                     if (!finalBar1) { // We at least need the target bar
                          console.warn("Movement bar not found for index:", idx1, "at step", this.currentStep);
-                         return;
-                    }
- 
-                    // --- Bar Highlighting Removed ---
-                    // Bar appearance is now solely based on its correctness for the step,
-                    // determined during its creation in createArrayBars.
-                    // We no longer need to track 'lastMoved' or apply temporary highlights here.
- 
-                    // --- Draw Movement Trail (if enabled) ---
-                    if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
-                         const bar1Pos = new THREE.Vector3();
+                        return;
+                   }
+
+                   // --- Bar Highlighting is Removed ---
+                   // Glow is determined by correctness in createArrayBars.
+
+                   // --- Draw Movement Trail (if enabled) ---
+                   if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
+                       const bar1Pos = new THREE.Vector3();
                          finalBar1.getWorldPosition(bar1Pos);
                          // Use base of bar for movement trail start/end? Or center? Let's use center y.
                          // bar1Pos.y += 0; 
