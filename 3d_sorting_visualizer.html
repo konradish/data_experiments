@@ -886,8 +886,16 @@
             },
             
             init() {
-                // Create Three.js scene
-                this.scene = new THREE.Scene();
+                // Check WebGL support first
+                if (!WEBGL.isWebGLAvailable()) {
+                    const warning = WEBGL.getWebGLErrorMessage();
+                    document.body.appendChild(warning);
+                    return;
+                }
+
+                try {
+                    // Create Three.js scene
+                    this.scene = new THREE.Scene();
                 // Slightly lighter background now that scene lights are removed
                 this.scene.background = new THREE.Color(0x202030); 
                 
@@ -901,11 +909,17 @@
                 this.cameraTarget.position.copy(this.camera.position);
                 this.cameraTarget.lookAt.copy(this.controls ? this.controls.target : new THREE.Vector3(0, 0, 0));
                 
-                // Renderer setup
-                this.renderer = new THREE.WebGLRenderer({ 
-                    antialias: true,
-                    powerPreference: "high-performance"
-                });
+                // Renderer setup with error handling
+                try {
+                    this.renderer = new THREE.WebGLRenderer({ 
+                        antialias: true,
+                        powerPreference: "high-performance"
+                    });
+                } catch (e) {
+                    console.error("Failed to create WebGL renderer:", e);
+                    // Fallback to basic renderer
+                    this.renderer = new THREE.WebGLRenderer();
+                }
                 this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
                 this.renderer.toneMappingExposure = 1.5;
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1139,14 +1153,20 @@
                         Math.pow(proximity, 1.5) // Faster transition to white
                     );
 
-                    const material = new THREE.MeshStandardMaterial({
-                        color: baseColor,
-                        emissive: emissiveColor,
-                        emissiveIntensity: emissiveIntensity,
-                        metalness: 0.3,
-                        roughness: 0.4,
-                        envMapIntensity: 0.5 // Enhance reflections
-                    });
+                    let material;
+                    try {
+                        material = new THREE.MeshStandardMaterial({
+                            color: baseColor,
+                            emissive: emissiveColor,
+                            emissiveIntensity: Math.min(emissiveIntensity, 3.0), // Clamp intensity
+                            metalness: 0.3,
+                            roughness: 0.4,
+                            envMapIntensity: 0.5 // Enhance reflections
+                        });
+                    } catch (e) {
+                        console.warn("Failed to create advanced material, using fallback:", e);
+                        material = new THREE.MeshBasicMaterial({ color: baseColor });
+                    }
 
                     // Create main bar
                     const bar = new THREE.Mesh(geometry, material);
@@ -1242,9 +1262,11 @@
             },
 
             bubbleSort(array) {
+                if (!array || !array.length) return;
+                
                 const n = array.length;
                 let swapped;
-                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
+                let stepCounter = Math.max(0, this.arrays.length - 1); // Start from the last recorded state index
                 
                 do {
                     swapped = false;
@@ -2062,9 +2084,28 @@
             frame: 0
         };
         
-        // Initialize the application
+        // Initialize the application with error handling
         window.addEventListener('load', () => {
-            app.init();
+            try {
+                app.init();
+            } catch (e) {
+                console.error("Application initialization failed:", e);
+                const errorDiv = document.createElement('div');
+                errorDiv.style.position = 'absolute';
+                errorDiv.style.top = '50%';
+                errorDiv.style.left = '50%';
+                errorDiv.style.transform = 'translate(-50%, -50%)';
+                errorDiv.style.padding = '20px';
+                errorDiv.style.background = 'rgba(255,0,0,0.2)';
+                errorDiv.style.border = '2px solid red';
+                errorDiv.style.color = 'white';
+                errorDiv.innerHTML = `
+                    <h2>Initialization Error</h2>
+                    <p>${e.message}</p>
+                    <p>Please check browser console for details.</p>
+                `;
+                document.body.appendChild(errorDiv);
+            }
         });
     </script>
 </body>
