@@ -1762,10 +1762,14 @@
                             if (bar.userData.type === 'arrayBar') {
                                 const material = bar.material;
                                 if (material.emissive) {
-                                    // Apply glow setting immediately
-                                    material.emissiveIntensity = this.showGlow ? 
-                                        bar.userData.baseEmissiveIntensity : 0;
-                                    // Also update emissive color if needed
+                                    // Always calculate fresh glow based on current position
+                                    const distanceFromCorrect = Math.abs(bar.userData.currentIndex - (bar.userData.value - 1));
+                                    const normalizedDistance = distanceFromCorrect / (this.dataSize - 1);
+                                    const proximity = 1.0 - normalizedDistance;
+                                    const emissiveIntensity = Math.pow(proximity, 3) * 1.5;
+                                    
+                                    // Apply glow setting
+                                    material.emissiveIntensity = this.showGlow ? emissiveIntensity : 0;
                                     material.emissive = this.showGlow ? 
                                         bar.userData.baseEmissive : new THREE.Color(0x000000);
                                     material.needsUpdate = true;
@@ -1927,7 +1931,7 @@
                         
                         // Create a gradient material for movement arcs
                         const material = new THREE.LineBasicMaterial({
-                            color: 0x00ff88, // Bright teal for movement
+                            color: 0xff00ff, // Bright magenta for swaps
                             linewidth: 3,
                             transparent: true,
                             opacity: 0.95,
@@ -1937,7 +1941,7 @@
                         
                         // Add a second, thinner arc in complementary color
                         const highlightMaterial = new THREE.LineBasicMaterial({
-                            color: 0xffaa00, // Gold highlight
+                            color: 0x00ffff, // Cyan highlight
                             linewidth: 1,
                             transparent: true,
                             opacity: 0.8
