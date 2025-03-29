@@ -1148,11 +1148,42 @@
                         envMapIntensity: 0.5 // Enhance reflections
                     });
 
+                    // Create main bar
                     const bar = new THREE.Mesh(geometry, material);
-                    
-                    // Position bar
                     bar.position.x = (index - this.dataSize / 2) * spacing;
                     bar.position.y = height / 2;
+
+                    // Add colored corner cubes to distinguish blocks
+                    const cornerSize = 0.3;
+                    const cornerGeometry = new THREE.BoxGeometry(cornerSize, cornerSize, cornerSize);
+                    
+                    // Different colors for each corner
+                    const cornerColors = [
+                        new THREE.Color(0xff0000), // red
+                        new THREE.Color(0x00ff00), // green
+                        new THREE.Color(0x0000ff), // blue
+                        new THREE.Color(0xffff00)  // yellow
+                    ];
+                    
+                    // Create and position corner cubes
+                    const corners = [];
+                    for (let i = 0; i < 4; i++) {
+                        const cornerMaterial = new THREE.MeshBasicMaterial({
+                            color: cornerColors[i],
+                            emissive: cornerColors[i],
+                            emissiveIntensity: 0.5
+                        });
+                        
+                        const corner = new THREE.Mesh(cornerGeometry, cornerMaterial);
+                        
+                        // Position corners at top of bar
+                        const xPos = (i % 2) ? barWidth/2 - cornerSize/2 : -barWidth/2 + cornerSize/2;
+                        const zPos = (i < 2) ? barWidth/2 - cornerSize/2 : -barWidth/2 + cornerSize/2;
+                        corner.position.set(xPos, height - cornerSize/2, zPos);
+                        
+                        bar.add(corner);
+                        corners.push(corner);
+                    }
                     
                     // Store original index for tracking
                     bar.userData = {
@@ -1646,12 +1677,26 @@
 
             // Clears only movement trails (used by updateVisualization)
             clearMovementTrails() {
-                this.movementTrails.forEach(line => {
-                    if (line.geometry) line.geometry.dispose();
-                    if (line.material) line.material.dispose();
-                    this.scene.remove(line);
+                this.movementTrails.forEach(obj => {
+                    // Only remove trails that should not persist
+                    if (!obj.userData.persistFor || 
+                        (this.currentStep - obj.userData.stepCreated) >= obj.userData.persistFor) {
+                        if (obj.geometry) obj.geometry.dispose();
+                        if (obj.material) {
+                            if (Array.isArray(obj.material)) {
+                                obj.material.forEach(m => m.dispose());
+                            } else {
+                                obj.material.dispose();
+                            }
+                        }
+                        this.scene.remove(obj);
+                    }
                 });
-                this.movementTrails = []; // Clear the array reference
+                
+                // Filter out removed trails from the array
+                this.movementTrails = this.movementTrails.filter(obj => 
+                    this.scene.children.includes(obj)
+                );
             },
 
             // Updates visualization elements (lines, trails) for the CURRENT step
@@ -1822,16 +1867,57 @@
                             opacity: 0.8
                         });
                         
+                        // Create thicker main arc with dashed effect
+                        const mainLine = new THREE.Line(geometry, material);
+                        mainLine.userData = {
+                            type: 'movementTrail',
+                            stepCreated: this.currentStep,
+                            fromIndex: idx1,
+                            toIndex: idx2
+                        };
+                        this.scene.add(mainLine);
+                        this.movementTrails.push(mainLine);
+
+                        // Create thinner highlight arc that persists longer
                         const highlightLine = new THREE.Line(geometry, highlightMaterial);
-                        highlightLine.userData = { type: 'movementTrail' };
+                        highlightLine.userData = {
+                            type: 'movementTrail',
+                            stepCreated: this.currentStep,
+                            fromIndex: idx1,
+                            toIndex: idx2,
+                            persistFor: 3 // Number of steps to persist
+                        };
                         this.scene.add(highlightLine);
                         this.movementTrails.push(highlightLine);
+
+                        // Add particle effect along the arc
+                        const particlesGeometry = new THREE.BufferGeometry();
+                        const particleCount = 15;
+                        const particlesPositions = new Float32Array(particleCount * 3);
                         
-                        const line = new THREE.Line(geometry, material);
-                        line.userData = { type: 'movementTrail' }; // Tag for removal
+                        const points = curve.getPoints(particleCount);
+                        points.forEach((point, i) => {
+                            particlesPositions[i * 3] = point.x;
+                            particlesPositions[i * 3 + 1] = point.y;
+                            particlesPositions[i * 3 + 2] = point.z;
+                        });
                         
-                        this.scene.add(line);
-                        this.movementTrails.push(line); // Store reference
+                        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlesPositions, 3));
+                        
+                        const particlesMaterial = new THREE.PointsMaterial({
+                            color: 0xffffff,
+                            size: 0.5,
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        
+                        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+                        particles.userData = {
+                            type: 'movementParticles',
+                            stepCreated: this.currentStep
+                        };
+                        this.scene.add(particles);
+                        this.movementTrails.push(particles);
                     }
                 } else {
                      console.warn("Invalid movement indices:", idx1, idx2, "at step", this.currentStep);
