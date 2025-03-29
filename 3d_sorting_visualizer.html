@@ -1350,11 +1350,11 @@
             
             updateVisualization() {
                 // Fade colors of previously moved bars
-                const currentStepBars = this.scene.children.filter(child => 
+                const stepBarsGroup = this.scene.children.filter(child => 
                     child.type === 'Group' && child.position.z === -this.currentStep * 5);
                 
-                if (currentStepBars.length > 0) {
-                    currentStepBars[0].children.forEach(bar => {
+                if (stepBarsGroup.length > 0) {
+                    stepBarsGroup[0].children.forEach(bar => {
                         if (bar.userData.lastMoved !== undefined) {
                             const stepsSinceMove = this.currentStep - bar.userData.lastMoved;
                             if (stepsSinceMove > 0) {
@@ -1379,12 +1379,12 @@
                 this.movementTrails = [];
                 
                 // Get current step bars
-                const currentStepBars = this.scene.children.filter(child => 
+                const stepBarsGroup = this.scene.children.filter(child => 
                     child.type === 'Group' && child.position.z === -this.currentStep * 5);
                 
-                if (currentStepBars.length === 0) return;
+                if (stepBarsGroup.length === 0) return;
                 
-                const bars = currentStepBars[0].children;
+                const bars = stepBarsGroup[0].children;
                 
                 // Show comparisons for current step
                 if (this.showComparisons && this.currentStep < this.comparisons.length) {
