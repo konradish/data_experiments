@@ -1621,86 +1621,37 @@
                 }
             },
             
-            // Clears only transient visuals like lines and trails
-            clearTransientVisuals() {
+            // Clears both comparison lines and movement trails (used by clearVisualization)
+            clearComparisonAndMovementVisuals() {
                  this.comparisonLines.forEach(line => {
                     if (line.geometry) line.geometry.dispose();
                     if (line.material) line.material.dispose();
                     this.scene.remove(line);
                 });
+                this.comparisonLines = []; // Clear the array reference
+
+                this.clearMovementTrails(); // Reuse movement trail clearing
+            },
+
+            // Clears only movement trails (used by updateVisualization)
+            clearMovementTrails() {
                 this.movementTrails.forEach(line => {
                     if (line.geometry) line.geometry.dispose();
                     if (line.material) line.material.dispose();
                     this.scene.remove(line);
                 });
-                this.comparisonLines = [];
-                this.movementTrails = [];
+                this.movementTrails = []; // Clear the array reference
             },
 
             // Updates colors, adds/removes lines/trails for the CURRENT step
             updateVisualization() {
-                // --- 1. Update Bar Colors (Fading) ---
-                const fadeDuration = 15; // How many steps it takes to fade significantly
-                this.scene.children.forEach(child => {
-                    if (child.type === 'Group') { // Iterate through step groups
-                        // Only process the group for the current step for active highlighting/fading logic
-                        const groupStep = Math.round(Math.abs(child.position.z / 5));
-                        // if (groupStep <= this.currentStep) { // Process current and past steps for fading
-                            child.children.forEach(bar => {
-                                if (bar.userData && bar.userData.type === 'arrayBar' && bar.userData.lastMoved !== undefined) {
-                                    const lastMoved = bar.userData.lastMoved;
-                                    
-                                    if (lastMoved === this.currentStep) {
-                                         // Highlight bar moved in the *current* step
-                                         const highlightLightness = 0.9;
-                                         bar.material.color.setHSL(bar.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
-                                         bar.material.emissive.copy(bar.material.color).multiplyScalar(0.4);
-                                    } else if (lastMoved !== -1 && lastMoved < this.currentStep) {
-                                        // Fade bars moved in *previous* steps
-                                        const stepsSinceMove = this.currentStep - lastMoved;
-                                        const fadeFactor = Math.max(0, 1 - (stepsSinceMove / fadeDuration));
-                                        
-                                        // Interpolate lightness between highlight and base
-                                        const highlightLightness = 0.9; 
-                                        const baseLightness = bar.userData.baseColor.getHSL({ h: 0, s: 0, l: 0 }).l;
-                                        const currentLightness = baseLightness + (highlightLightness - baseLightness) * fadeFactor;
+                // --- 1. Bar Appearance is Static Based on Correctness ---
+                // The color/emissive properties are set in createArrayBars based on correctness
+                // and are no longer changed dynamically here based on movement/fading.
 
-                                        bar.material.color.setHSL(
-                                            bar.userData.baseColor.getHSL({ h: 0, s: 0, l: 0 }).h,
-                                            1.0, 
-                                            currentLightness
-                                        );
-                                         // Also fade emissive intensity
-                                         const highlightIntensity = 1.0; // Highlight glow intensity
-                                         const baseIntensity = bar.userData.baseEmissiveIntensity;
-                                         const currentIntensity = baseIntensity + (highlightIntensity - baseIntensity) * fadeFactor;
-                                         bar.material.emissiveIntensity = currentIntensity;
-                                         // Keep emissive color matching base color hue during fade
-                                         bar.material.emissive.setHSL(bar.userData.baseEmissive.getHSL({h:0,s:0,l:0}).h, 1.0, currentLightness * 0.8); // Emissive slightly darker?
-
-                                    } else { // lastMoved === -1 or > this.currentStep (e.g., during reset)
-                                         // Reset to base color and emissive properties if not currently faded/highlighted
-                                         if (!bar.material.color.equals(bar.userData.baseColor) || bar.material.emissiveIntensity !== bar.userData.baseEmissiveIntensity) {
-                                             bar.material.color.copy(bar.userData.baseColor);
-                                             bar.material.emissive.copy(bar.userData.baseEmissive);
-                                             bar.material.emissiveIntensity = bar.userData.baseEmissiveIntensity;
-                                         }
-                                    }
-                                } else if (bar.userData && bar.userData.type === 'arrayBar') {
-                                     // Ensure bars that were never moved are reset (e.g., after reset)
-                                     if (!bar.material.color.equals(bar.userData.baseColor) || bar.material.emissiveIntensity !== bar.userData.baseEmissiveIntensity) {
-                                         bar.material.color.copy(bar.userData.baseColor);
-                                         bar.material.emissive.copy(bar.userData.baseEmissive);
-                                         bar.material.emissiveIntensity = bar.userData.baseEmissiveIntensity;
-                                     }
-                                }
-                            });
-                        // }
-                    }
-                });
-
-                // --- 2. Clear Previous Transient Visuals ---
-                this.clearTransientVisuals();
+                // --- 2. Clear Previous Movement Trails ONLY ---
+                // Comparison lines are now persistent until a full reset.
+                this.clearMovementTrails();
                 
                 // --- 3. Get Bars for the Current Step ---
                 const currentStepZ = -this.currentStep * 5;
@@ -1816,27 +1767,12 @@
                          console.warn("Movement bar not found for index:", idx1, "at step", this.currentStep);
                          return;
                     }
-
-                    // --- Mark Moved Bars for Highlighting/Fading ---
-                    // Set the step marker. The actual color/intensity change happens in updateVisualization's loop.
-                    finalBar1.userData.lastMoved = this.currentStep;
-                     // Only mark bar2 if it's different from bar1 (swap vs shift/write)
-                    if (finalBar2 && finalBar1 !== finalBar2) { 
-                        finalBar2.userData.lastMoved = this.currentStep;
-                    }
-                    // Force an immediate visual update for the highlighted bars in this step
-                    const highlightLightness = 0.9;
-                    const highlightIntensity = 1.0;
-                    finalBar1.material.color.setHSL(finalBar1.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
-                    finalBar1.material.emissive.copy(finalBar1.material.color); // Emissive matches bright color
-                    finalBar1.material.emissiveIntensity = highlightIntensity;
-                    if (finalBar2 && finalBar1 !== finalBar2) {
-                        finalBar2.material.color.setHSL(finalBar2.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
-                        finalBar2.material.emissive.copy(finalBar2.material.color);
-                        finalBar2.material.emissiveIntensity = highlightIntensity;
-                    }
-
-
+ 
+                    // --- Bar Highlighting Removed ---
+                    // Bar appearance is now solely based on its correctness for the step,
+                    // determined during its creation in createArrayBars.
+                    // We no longer need to track 'lastMoved' or apply temporary highlights here.
+ 
                     // --- Draw Movement Trail (if enabled) ---
                     if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
                          const bar1Pos = new THREE.Vector3();
