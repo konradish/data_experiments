@@ -149,6 +149,35 @@
     <!-- Import Three.js library and dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/js/WebGL.js"></script>
+    <script>
+        // Make WebGL detection globally available
+        const WEBGL = {
+            isWebGLAvailable: function () {
+                try {
+                    const canvas = document.createElement('canvas');
+                    return !!(window.WebGLRenderingContext && 
+                            (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+                } catch (e) {
+                    return false;
+                }
+            },
+            getWebGLErrorMessage: function () {
+                const element = document.createElement('div');
+                element.className = 'webgl-error';
+                element.style.cssText = 'margin: auto; padding: 1.5em; width: 400px; text-align: center; background: #fff; color: #000;';
+                if (!this.isWebGLAvailable()) {
+                    element.innerHTML = window.WebGLRenderingContext ? [
+                        'Your graphics card does not seem to support <a href="https://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br />',
+                        'Find out how to get it <a href="https://get.webgl.org/" style="color:#000">here</a>.'
+                    ].join('\n') : [
+                        'Your browser does not seem to support <a href="https://khronos.org/webgl/wiki/Getting_a_WebGL_Implementation" style="color:#000">WebGL</a>.<br/>',
+                        'Find out how to get it <a href="https://get.webgl.org/" style="color:#000">here</a>.'
+                    ].join('\n');
+                }
+                return element;
+            }
+        };
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat.gui/0.7.7/dat.gui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/16/Stats.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
