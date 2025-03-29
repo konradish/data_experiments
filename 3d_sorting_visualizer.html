@@ -1706,6 +1706,8 @@
                     
                     if (!existingGroup) {
                         this.createArrayBars(this.arrays[this.currentStep], this.currentStep);
+                        // Update materials based on current glow setting for newly created bars
+                        this.updateBarMaterials();
                     }
                     
                     this.updateVisualization();
@@ -1760,8 +1762,13 @@
                             if (bar.userData.type === 'arrayBar') {
                                 const material = bar.material;
                                 if (material.emissive) {
+                                    // Apply glow setting immediately
                                     material.emissiveIntensity = this.showGlow ? 
                                         bar.userData.baseEmissiveIntensity : 0;
+                                    // Also update emissive color if needed
+                                    material.emissive = this.showGlow ? 
+                                        bar.userData.baseEmissive : new THREE.Color(0x000000);
+                                    material.needsUpdate = true;
                                 }
                             }
                         });
