@@ -1883,10 +1883,12 @@
             },
             
             visualizeMovement(bars, movement, stepZ, showTrail) {
+                if (!movement || !Array.isArray(movement)) return;
+                
                 const [idx1, idx2] = movement; // Often [targetIdx, sourceIdx] or [idxA, idxB] for swap
                 
                 // Find bars involved in the movement using indices from the *previous* state.
-                 if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
+                if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
                     // Find the actual bar objects corresponding to these indices
                     const bar1 = bars.find(b => b.userData.currentIndex === idx1); // Or originalIndex
                     const bar2 = bars.find(b => b.userData.currentIndex === idx2); // Or originalIndex
@@ -1947,7 +1949,7 @@
                             opacity: 0.8
                         });
                         
-                        // Create thicker main arc with dashed effect
+                        // Create main arc
                         const mainLine = new THREE.Line(geometry, material);
                         mainLine.userData = {
                             type: 'movementTrail',
@@ -1958,46 +1960,21 @@
                         this.scene.add(mainLine);
                         this.movementTrails.push(mainLine);
 
-                        // Create thinner highlight arc that persists longer
+                        // Create highlight arc
                         const highlightLine = new THREE.Line(geometry, highlightMaterial);
                         highlightLine.userData = {
                             type: 'movementTrail',
                             stepCreated: this.currentStep,
                             fromIndex: idx1,
                             toIndex: idx2,
-                            persistFor: 3 // Number of steps to persist
+                            persistFor: 3
                         };
                         this.scene.add(highlightLine);
                         this.movementTrails.push(highlightLine);
 
-                        // Add particle effect along the arc
-                        const particlesGeometry = new THREE.BufferGeometry();
-                        const particleCount = 15;
-                        const particlesPositions = new Float32Array(particleCount * 3);
-                        
-                        const particlePoints = curve.getPoints(particleCount);
-                        particlePoints.forEach((point, i) => {
-                            particlesPositions[i * 3] = point.x;
-                            particlesPositions[i * 3 + 1] = point.y;
-                            particlesPositions[i * 3 + 2] = point.z;
-                        });
-                        
-                        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(particlesPositions, 3));
-                        
-                        const particlesMaterial = new THREE.PointsMaterial({
-                            color: 0xffffff,
-                            size: 0.5,
-                            transparent: true,
-                            opacity: 0.8
-                        });
-                        
-                        const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-                        particles.userData = {
-                            type: 'movementParticles',
-                            stepCreated: this.currentStep
-                        };
-                        this.scene.add(particles);
-                        this.movementTrails.push(particles);
+                        // Make arcs more visible by increasing their size
+                        material.linewidth = 4;
+                        highlightMaterial.linewidth = 2;
                     }
                 } else {
                      console.warn("Invalid movement indices:", idx1, idx2, "at step", this.currentStep);
