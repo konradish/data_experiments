@@ -1590,20 +1590,28 @@
                                             1.0, 
                                             currentLightness
                                         );
-                                         bar.material.emissive.copy(bar.material.color).multiplyScalar(0.3);
+                                         // Also fade emissive intensity
+                                         const highlightIntensity = 1.0; // Highlight glow intensity
+                                         const baseIntensity = bar.userData.baseEmissiveIntensity;
+                                         const currentIntensity = baseIntensity + (highlightIntensity - baseIntensity) * fadeFactor;
+                                         bar.material.emissiveIntensity = currentIntensity;
+                                         // Keep emissive color matching base color hue during fade
+                                         bar.material.emissive.setHSL(bar.userData.baseEmissive.getHSL({h:0,s:0,l:0}).h, 1.0, currentLightness * 0.8); // Emissive slightly darker?
 
                                     } else { // lastMoved === -1 or > this.currentStep (e.g., during reset)
-                                         // Reset to base color if not moved or moved in future steps
-                                         if (!bar.material.color.equals(bar.userData.baseColor)) {
+                                         // Reset to base color and emissive properties if not currently faded/highlighted
+                                         if (!bar.material.color.equals(bar.userData.baseColor) || bar.material.emissiveIntensity !== bar.userData.baseEmissiveIntensity) {
                                              bar.material.color.copy(bar.userData.baseColor);
                                              bar.material.emissive.copy(bar.userData.baseEmissive);
+                                             bar.material.emissiveIntensity = bar.userData.baseEmissiveIntensity;
                                          }
                                     }
                                 } else if (bar.userData && bar.userData.type === 'arrayBar') {
                                      // Ensure bars that were never moved are reset (e.g., after reset)
-                                     if (!bar.material.color.equals(bar.userData.baseColor)) {
+                                     if (!bar.material.color.equals(bar.userData.baseColor) || bar.material.emissiveIntensity !== bar.userData.baseEmissiveIntensity) {
                                          bar.material.color.copy(bar.userData.baseColor);
                                          bar.material.emissive.copy(bar.userData.baseEmissive);
+                                         bar.material.emissiveIntensity = bar.userData.baseEmissiveIntensity;
                                      }
                                 }
                             });
