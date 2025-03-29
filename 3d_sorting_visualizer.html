@@ -825,11 +825,9 @@
                 this.camera.position.set(30, 120, 30);
                 this.camera.lookAt(0, 0, 0);
                 
-                // Camera animation properties
-                this.cameraTarget = {
-                    position: new THREE.Vector3(30, 120, 30),
-                    lookAt: new THREE.Vector3(0, 0, 0)
-                };
+                // Initialize camera target state
+                this.cameraTarget.position.copy(this.camera.position);
+                this.cameraTarget.lookAt.copy(this.controls ? this.controls.target : new THREE.Vector3(0, 0, 0));
                 
                 // Renderer setup
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -980,13 +978,23 @@
                     const child = this.scene.children[i];
                     if (child.type === 'Group' || 
                         (child.userData && (child.userData.type === 'arrayBar' || 
-                                            child.userData.type === 'comparisonLine' || 
+                                            child.userData.type === 'comparisonLine' ||
                                             child.userData.type === 'movementTrail'))) {
+                        // Dispose geometry and material to free GPU memory
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            // Handle arrays of materials
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(m => m.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
                         this.scene.remove(child);
                     }
                 }
                 
-                // Clear stored visualization objects
+                // Clear stored references
                 this.comparisonLines = [];
                 this.movementTrails = [];
             },
