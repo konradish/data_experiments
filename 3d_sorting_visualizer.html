@@ -1008,11 +1008,13 @@
                         header.parentElement.classList.toggle('collapsed');
                     });
                 });
-                // Optional: Start collapsed on mobile?
-                // if (window.innerWidth <= 768) {
-                //     document.getElementById('info').classList.add('collapsed');
-                //     document.getElementById('controls').classList.add('collapsed');
-                // }
+                // Start panels collapsed on smaller screens (mobile)
+                if (window.innerWidth <= 768) {
+                    const infoPanel = document.getElementById('info');
+                    const controlsPanel = document.getElementById('controls');
+                    if (infoPanel) infoPanel.classList.add('collapsed');
+                    if (controlsPanel) controlsPanel.classList.add('collapsed');
+                }
             },
             
             generateData() {
