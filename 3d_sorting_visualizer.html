@@ -141,6 +141,9 @@
             <label><input type="checkbox" id="showMovement" checked> Track Movement</label>
         </div>
         <div>
+            <label><input type="checkbox" id="showGlow" checked> Show Glow Effect</label>
+        </div>
+        <div>
             <label>Animation Speed: <input type="range" id="speed" min="1" max="10" value="5"></label>
         </div>
         </div> <!-- Close collapsible-content -->
@@ -902,6 +905,7 @@
             animationSpeed: 5,
             showComparisons: true,
             showMovement: true,
+            showGlow: true,
             dataSize: 20,
             algorithm: 'bubble',
             dataPattern: 'random',
@@ -1053,6 +1057,11 @@
                 document.getElementById('showMovement').addEventListener('change', (e) => {
                     this.showMovement = e.target.checked;
                     this.updateVisualization();
+                });
+
+                document.getElementById('showGlow').addEventListener('change', (e) => {
+                    this.showGlow = e.target.checked;
+                    this.updateBarMaterials();
                 });
                 
                 document.getElementById('speed').addEventListener('input', (e) => {
@@ -1238,7 +1247,7 @@
                         // Store base material properties if needed for other effects later
                         baseColor: baseColor.clone(),
                         baseEmissive: emissiveColor.clone(),
-                        baseEmissiveIntensity: emissiveIntensity
+                        baseEmissiveIntensity: this.showGlow ? emissiveIntensity : 0
                     };
 
                     stepGroup.add(bar);
@@ -1743,6 +1752,23 @@
             },
 
             // Updates visualization elements (lines, trails) for the CURRENT step
+            updateBarMaterials() {
+                // Update all bars' materials based on current glow setting
+                this.scene.children.forEach(group => {
+                    if (group.type === 'Group') {
+                        group.children.forEach(bar => {
+                            if (bar.userData.type === 'arrayBar') {
+                                const material = bar.material;
+                                if (material.emissive) {
+                                    material.emissiveIntensity = this.showGlow ? 
+                                        bar.userData.baseEmissiveIntensity : 0;
+                                }
+                            }
+                        });
+                    }
+                });
+            },
+
             updateVisualization() {
                 // Bar appearance (color/glow) is now static per step, set in createArrayBars.
                 // We only need to manage comparison lines and movement trails here.
