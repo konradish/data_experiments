@@ -1173,38 +1173,6 @@
                     bar.position.x = (index - this.dataSize / 2) * spacing;
                     bar.position.y = height / 2;
 
-                    // Add colored corner cubes to distinguish blocks
-                    const cornerSize = 0.3;
-                    const cornerGeometry = new THREE.BoxGeometry(cornerSize, cornerSize, cornerSize);
-                    
-                    // Different colors for each corner
-                    const cornerColors = [
-                        new THREE.Color(0xff0000), // red
-                        new THREE.Color(0x00ff00), // green
-                        new THREE.Color(0x0000ff), // blue
-                        new THREE.Color(0xffff00)  // yellow
-                    ];
-                    
-                    // Create and position corner cubes
-                    const corners = [];
-                    for (let i = 0; i < 4; i++) {
-                        const cornerMaterial = new THREE.MeshBasicMaterial({
-                            color: cornerColors[i],
-                            emissive: cornerColors[i],
-                            emissiveIntensity: 0.5
-                        });
-                        
-                        const corner = new THREE.Mesh(cornerGeometry, cornerMaterial);
-                        
-                        // Position corners at top of bar
-                        const xPos = (i % 2) ? barWidth/2 - cornerSize/2 : -barWidth/2 + cornerSize/2;
-                        const zPos = (i < 2) ? barWidth/2 - cornerSize/2 : -barWidth/2 + cornerSize/2;
-                        corner.position.set(xPos, height - cornerSize/2, zPos);
-                        
-                        bar.add(corner);
-                        corners.push(corner);
-                    }
-                    
                     // Store original index for tracking
                     bar.userData = {
                         type: 'arrayBar',
