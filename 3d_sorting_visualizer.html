@@ -918,7 +918,8 @@
                 });
                 
                 document.getElementById('speed').addEventListener('input', (e) => {
-                    this.animationSpeed = parseInt(e.target.value);
+                    // Make speed non-linear (faster at higher values)
+                    this.animationSpeed = Math.pow(parseInt(e.target.value), 1.5); 
                 });
                 
                 window.addEventListener('resize', () => {
@@ -1053,10 +1054,13 @@
                     bar.userData = {
                         type: 'arrayBar',
                         value: value,
-                        originalIndex: index,
-                        currentIndex: index,
+                        originalIndex: index, // Keep original index
+                        currentIndex: index, // Current index within this step's group
                         step: step,
-                        correctPosition: (index === correctIndex)
+                        correctPosition: (index === correctIndex),
+                        lastMoved: -1, // Step number when this bar was last involved in a move
+                        baseColor: color.clone(), // Store the calculated base color
+                        baseEmissive: material.emissive.clone() // Store base emissive color
                     };
                     
                     stepGroup.add(bar);
@@ -1093,89 +1097,179 @@
                         break;
                 }
                 
+                // Ensure auxiliary arrays are padded to match the final arrays length
+                this.padAuxiliaryArrays();
+
                 // Visualize all recorded steps
                 this.visualizeAlgorithmSteps();
             },
-            
+
             bubbleSort(array) {
                 const n = array.length;
                 let swapped;
+                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
                 
                 do {
                     swapped = false;
                     for (let i = 0; i < n - 1; i++) {
-                        // Record comparison
-                        this.comparisons.push([i, i + 1]);
+                        // Record comparison for the *next* potential state
+                        this.comparisons[stepCounter] = [i, i + 1];
+                        this.movements[stepCounter] = null; // Assume no movement initially for this step
                         
                         if (array[i] > array[i + 1]) {
-                            // Record movement
-                            this.movements.push([i, i + 1]);
+                            // Record movement for this step
+                            this.movements[stepCounter] = [i, i + 1]; 
                             
                             // Swap elements
                             [array[i], array[i + 1]] = [array[i + 1], array[i]];
                             swapped = true;
                             
-                            // Record array state after swap
+                            // Record array state *after* swap
                             this.arrays.push([...array]);
+                            stepCounter++; // Increment step counter only after recording a new array state
+                        } else {
+                             // If no swap, still record the state to visualize the comparison step
+                             // Ensure comparison/movement arrays are extended if needed
+                             this.comparisons[stepCounter] = [i, i + 1]; 
+                             this.movements[stepCounter] = null;
+                             this.arrays.push([...array]);
+                             stepCounter++;
                         }
                     }
+                    // Optimization: reduce loop range if needed (can complicate index tracking)
+                    // n--; 
                 } while (swapped);
+                // Ensure comparisons/movements arrays are padded to match arrays length if needed
+                 while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
+                 while (this.movements.length < this.arrays.length) this.movements.push(null);
             },
             
             insertionSort(array) {
                 const n = array.length;
                 
+                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
+                
                 for (let i = 1; i < n; i++) {
-                    const key = array[i];
+                    let key = array[i];
                     let j = i - 1;
-                    
+                    let current_comparison_idx = i; // Index being compared/inserted
+
+                    // State before starting insertion for 'key' already exists (arrays[stepCounter])
+                    // Record initial comparison target (key vs element at j)
+                    this.comparisons[stepCounter] = (j >= 0) ? [j, current_comparison_idx] : null;
+                    this.movements[stepCounter] = null;
+
                     while (j >= 0 && array[j] > key) {
-                        // Record comparison
-                        this.comparisons.push([j, j + 1]);
-                        
-                        // Record movement
-                        this.movements.push([j, j + 1]);
-                        
-                        array[j + 1] = array[j];
-                        j--;
-                        
-                        // Record array state after each shift
-                        this.arrays.push([...array]);
+                         // Record comparison for the *next* state
+                         this.comparisons[stepCounter] = [j, current_comparison_idx];
+                         // Record movement (shift) for the *next* state
+                         this.movements[stepCounter] = [j + 1, j]; // Element at j moves to j+1
+                            
+                         array[j + 1] = array[j];
+                         current_comparison_idx = j + 1; // Update index of the 'hole'
+                         j--;
+                            
+                         // Record array state after shift
+                         this.arrays.push([...array]);
+                         stepCounter++;
+                         
+                         // Record comparison for the *next* potential state (if loop continues)
+                         this.comparisons[stepCounter] = (j >= 0) ? [j, current_comparison_idx] : null;
+                         this.movements[stepCounter] = null; // Reset movement for next comparison
                     }
                     
-                    array[j + 1] = key;
-                    
-                    // Record final array state after insertion
-                    this.arrays.push([...array]);
+                    // Place the key in its correct position
+                    if (array[j + 1] !== key) {
+                         // Record movement (final placement of key) for the *next* state
+                         // We need a state to show the final placement
+                         this.comparisons[stepCounter] = null; 
+                         // Movement is placing 'key' into j+1. Source is conceptual (original index i).
+                         this.movements[stepCounter] = [j + 1, i]; 
+                         
+                         array[j + 1] = key;
+                         
+                         // Record final array state after insertion
+                         this.arrays.push([...array]);
+                         stepCounter++;
+                    } else {
+                         // Key was already in place or loop didn't run, but we might need a state
+                         // if the last comparison state wasn't recorded explicitly.
+                         // Ensure the state after the inner loop is recorded if different.
+                         if (!_.isEqual(this.arrays[stepCounter], array)) {
+                             this.comparisons[stepCounter] = null; // No comparison/movement for this state
+                             this.movements[stepCounter] = null;
+                             this.arrays.push([...array]);
+                             stepCounter++;
+                         }
+                    }
                 }
+                 // Ensure comparisons/movements arrays are padded
+                 while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
+                 while (this.movements.length < this.arrays.length) this.movements.push(null);
             },
             
             selectionSort(array) {
                 const n = array.length;
                 
+                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
+
                 for (let i = 0; i < n - 1; i++) {
                     let minIdx = i;
                     
+                    // State before starting scan for pass 'i' already exists (arrays[stepCounter])
+                    // Record initial comparison for the *next* state
+                    this.comparisons[stepCounter] = (i + 1 < n) ? [minIdx, i + 1] : null;
+                    this.movements[stepCounter] = null;
+
                     for (let j = i + 1; j < n; j++) {
-                        // Record comparison
-                        this.comparisons.push([minIdx, j]);
+                        // Record comparison for the *next* state
+                        this.comparisons[stepCounter] = [minIdx, j];
+                        this.movements[stepCounter] = null; // No movement during comparison scan
                         
+                        // Record array state for each comparison step
+                        this.arrays.push([...array]); 
+                        stepCounter++;
+
                         if (array[j] < array[minIdx]) {
                             minIdx = j;
+                            // Update comparison target for the *next* step if minIdx changed
+                            this.comparisons[stepCounter] = (j + 1 < n) ? [minIdx, j + 1] : null;
+                        } else {
+                             // Set comparison for the *next* step
+                             this.comparisons[stepCounter] = (j + 1 < n) ? [minIdx, j + 1] : null;
                         }
+                         this.movements[stepCounter] = null; // Ensure movement is null for next comparison state
                     }
                     
+                    // After finding the minimum, record the swap if needed
                     if (minIdx !== i) {
-                        // Record movement
-                        this.movements.push([i, minIdx]);
+                        // Record movement (swap) for the *next* state
+                        this.comparisons[stepCounter] = null; // No comparison during swap
+                        this.movements[stepCounter] = [i, minIdx];
                         
                         // Swap elements
                         [array[i], array[minIdx]] = [array[minIdx], array[i]];
                         
-                        // Record array state after swap
+                        // Record array state *after* swap
                         this.arrays.push([...array]);
+                        stepCounter++;
+                    } else {
+                        // If no swap needed, ensure the state marking the end of the pass is present
+                        // if it's different from the last comparison state.
+                         if (!_.isEqual(this.arrays[stepCounter], array)) {
+                             this.comparisons[stepCounter] = null;
+                             this.movements[stepCounter] = null;
+                             this.arrays.push([...array]);
+                             stepCounter++;
+                         }
                     }
+                     // Ensure comparison/movement for the state *after* the potential swap/end-of-pass is nullified
+                     this.comparisons[stepCounter] = null;
+                     this.movements[stepCounter] = null;
                 }
+                 // Ensure comparisons/movements arrays are padded
+                 while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
+                 while (this.movements.length < this.arrays.length) this.movements.push(null);
             },
             
             quickSort(array, low, high) {
@@ -1190,36 +1284,71 @@
             partition(array, low, high) {
                 const pivot = array[high];
                 let i = low - 1;
+                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
                 
+                // State before partition loop exists (arrays[stepCounter])
+                // Record initial comparison for the *next* state
+                this.comparisons[stepCounter] = (low < high) ? [low, high] : null;
+                this.movements[stepCounter] = null;
+
                 for (let j = low; j < high; j++) {
-                    // Record comparison with pivot
-                    this.comparisons.push([j, high]);
+                    // Record comparison with pivot for the *next* state
+                    this.comparisons[stepCounter] = [j, high];
+                    this.movements[stepCounter] = null; // No movement yet for comparison step
                     
+                    // Record state showing the comparison
+                    this.arrays.push([...array]); 
+                    stepCounter++;
+
                     if (array[j] < pivot) {
                         i++;
                         
-                        // Record movement
-                        this.movements.push([i, j]);
-                        
-                        // Swap elements
-                        [array[i], array[j]] = [array[j], array[i]];
-                        
-                        // Record array state after swap
-                        this.arrays.push([...array]);
+                        // Check if swap is necessary (i !== j)
+                        if (i !== j) {
+                            // Record movement (swap) for the *next* state
+                            this.comparisons[stepCounter] = null; // No comparison during swap
+                            this.movements[stepCounter] = [i, j];
+                            
+                            // Swap elements
+                            [array[i], array[j]] = [array[j], array[i]];
+                            
+                            // Record array state *after* swap
+                            this.arrays.push([...array]);
+                            stepCounter++;
+                        }
+                        // If i === j, no actual swap occurs, no new state needed just for that.
                     }
+                     // Record comparison for the *next* iteration (if j+1 < high)
+                     this.comparisons[stepCounter] = (j + 1 < high) ? [j + 1, high] : null;
+                     this.movements[stepCounter] = null; // Reset movement for next comparison
                 }
                 
-                // Move pivot to its final position
+                // Move pivot to its final position (swap with element at i + 1)
+                // Check if swap is necessary (i + 1 !== high)
                 if (i + 1 !== high) {
-                    // Record movement
-                    this.movements.push([i + 1, high]);
-                    
+                     // Record movement (pivot swap) for the *next* state
+                    this.comparisons[stepCounter] = null;
+                    this.movements[stepCounter] = [i + 1, high];
+
                     // Swap elements
                     [array[i + 1], array[high]] = [array[high], array[i + 1]];
                     
-                    // Record array state after swap
+                    // Record array state *after* pivot swap
                     this.arrays.push([...array]);
+                    stepCounter++;
+                } else {
+                     // If pivot is already in place, ensure state exists if different
+                     if (!_.isEqual(this.arrays[stepCounter], array)) {
+                         this.comparisons[stepCounter] = null;
+                         this.movements[stepCounter] = null;
+                         this.arrays.push([...array]);
+                         stepCounter++;
+                     }
                 }
+                 // Nullify comparison/movement for the state *after* partition finishes
+                 this.comparisons[stepCounter] = null;
+                 this.movements[stepCounter] = null;
+                 // Padding handled by caller (quickSort/mergeSort)
                 
                 return i + 1;
             },
@@ -1254,73 +1383,110 @@
                 // Merge temp arrays back into array[left..right]
                 let i = 0;
                 let j = 0;
-                let k = left;
+                let i = 0; // index for L
+                let j = 0; // index for R
+                let k = left; // index for merged array
+                let stepCounter = this.arrays.length - 1; // Start from the last recorded state index
+
+                // State before merge loop exists (arrays[stepCounter])
+                // Record initial comparison for the *next* state
+                this.comparisons[stepCounter] = (i < n1 && j < n2) ? [left + i, mid + 1 + j] : null;
+                this.movements[stepCounter] = null;
                 
                 while (i < n1 && j < n2) {
-                    // Record comparison
-                    this.comparisons.push([left + i, mid + 1 + j]);
+                    // Record comparison for the *next* state
+                    this.comparisons[stepCounter] = [left + i, mid + 1 + j];
+                    this.movements[stepCounter] = null; // No movement yet for comparison step
                     
+                    // Record state showing the comparison
+                    this.arrays.push([...array]); 
+                    stepCounter++;
+
                     if (L[i] <= R[j]) {
+                        // Check if a move/write is actually happening
                         if (array[k] !== L[i]) {
-                            // Record movement
-                            this.movements.push([k, left + i]);
+                            // Record movement (write from L) for the *next* state
+                            this.comparisons[stepCounter] = null; 
+                            this.movements[stepCounter] = [k, left + i]; // Target k, Source (conceptual) left+i
                             
-                            // Update array
                             array[k] = L[i];
                             
-                            // Record array state after change
+                            // Record array state *after* write
                             this.arrays.push([...array]);
+                            stepCounter++;
                         }
                         i++;
                     } else {
+                         // Check if a move/write is actually happening
                         if (array[k] !== R[j]) {
-                            // Record movement
-                            this.movements.push([k, mid + 1 + j]);
+                            // Record movement (write from R) for the *next* state
+                            this.comparisons[stepCounter] = null;
+                            this.movements[stepCounter] = [k, mid + 1 + j]; // Target k, Source (conceptual) mid+1+j
                             
-                            // Update array
                             array[k] = R[j];
                             
-                            // Record array state after change
+                            // Record array state *after* write
                             this.arrays.push([...array]);
+                            stepCounter++;
                         }
                         j++;
                     }
                     k++;
+                     // Record comparison for the *next* iteration (if loop continues)
+                     this.comparisons[stepCounter] = (i < n1 && j < n2) ? [left + i, mid + 1 + j] : null;
+                     this.movements[stepCounter] = null; // Reset movement
                 }
                 
-                // Copy remaining elements of L[]
+                // Copy remaining elements of L[] if any
                 while (i < n1) {
+                     // Check if a move/write is actually happening
                     if (array[k] !== L[i]) {
-                        // Record movement
-                        this.movements.push([k, left + i]);
+                        // Record movement for the *next* state
+                        this.comparisons[stepCounter] = null;
+                        this.movements[stepCounter] = [k, left + i];
                         
-                        // Update array
                         array[k] = L[i];
                         
                         // Record array state after change
                         this.arrays.push([...array]);
+                        stepCounter++;
                     }
                     i++;
                     k++;
+                     // Nullify comparison/movement for next state within this loop
+                     this.comparisons[stepCounter] = null;
+                     this.movements[stepCounter] = null;
                 }
                 
-                // Copy remaining elements of R[]
+                // Copy remaining elements of R[] if any
                 while (j < n2) {
+                     // Check if a move/write is actually happening
                     if (array[k] !== R[j]) {
-                        // Record movement
-                        this.movements.push([k, mid + 1 + j]);
+                        // Record movement for the *next* state
+                        this.comparisons[stepCounter] = null;
+                        this.movements[stepCounter] = [k, mid + 1 + j];
                         
-                        // Update array
                         array[k] = R[j];
                         
                         // Record array state after change
                         this.arrays.push([...array]);
+                        stepCounter++;
                     }
                     j++;
                     k++;
+                     // Nullify comparison/movement for next state within this loop
+                     this.comparisons[stepCounter] = null;
+                     this.movements[stepCounter] = null;
                 }
+                 // Ensure comparisons/movements arrays are padded by caller (mergeSort)
             },
             
+            // Pad arrays after main sort call finishes
+            padAuxiliaryArrays() {
+                 while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
+                 while (this.movements.length < this.arrays.length) this.movements.push(null);
+            },
+
             visualizeAlgorithmSteps() {
                 // Clear existing visualization
                 this.clearVisualization();
@@ -1356,132 +1522,240 @@
                 }
             },
             
-            updateVisualization() {
-                // Fade colors of previously moved bars
-                const stepBarsGroup = this.scene.children.filter(child => 
-                    child.type === 'Group' && child.position.z === -this.currentStep * 5);
-                
-                if (stepBarsGroup.length > 0) {
-                    stepBarsGroup[0].children.forEach(bar => {
-                        if (bar.userData.lastMoved !== undefined) {
-                            const stepsSinceMove = this.currentStep - bar.userData.lastMoved;
-                            if (stepsSinceMove > 0) {
-                                const fadeFactor = Math.max(0, 1 - (stepsSinceMove * 0.1));
-                                const hue = (bar.userData.value / this.dataSize) * 0.8;
-                                const lightness = 0.3 + (0.5 * fadeFactor);
-                                bar.material.color.setHSL(hue, 1.0, lightness);
-                                bar.material.emissive.setHSL(hue, 1.0, lightness * 0.3);
-                            }
-                        }
-                    });
-                }
-
-                // Clear existing comparison lines and movement trails
-                this.scene.children.forEach(child => {
-                    if (child.userData && (child.userData.type === 'comparisonLine' || child.userData.type === 'movementTrail')) {
-                        this.scene.remove(child);
-                    }
+            // Clears only transient visuals like lines and trails
+            clearTransientVisuals() {
+                 this.comparisonLines.forEach(line => {
+                    if (line.geometry) line.geometry.dispose();
+                    if (line.material) line.material.dispose();
+                    this.scene.remove(line);
                 });
-                
+                this.movementTrails.forEach(line => {
+                    if (line.geometry) line.geometry.dispose();
+                    if (line.material) line.material.dispose();
+                    this.scene.remove(line);
+                });
                 this.comparisonLines = [];
                 this.movementTrails = [];
+            },
+
+            // Updates colors, adds/removes lines/trails for the CURRENT step
+            updateVisualization() {
+                // --- 1. Update Bar Colors (Fading) ---
+                const fadeDuration = 15; // How many steps it takes to fade significantly
+                this.scene.children.forEach(child => {
+                    if (child.type === 'Group') { // Iterate through step groups
+                        // Only process the group for the current step for active highlighting/fading logic
+                        const groupStep = Math.round(Math.abs(child.position.z / 5));
+                        // if (groupStep <= this.currentStep) { // Process current and past steps for fading
+                            child.children.forEach(bar => {
+                                if (bar.userData && bar.userData.type === 'arrayBar' && bar.userData.lastMoved !== undefined) {
+                                    const lastMoved = bar.userData.lastMoved;
+                                    
+                                    if (lastMoved === this.currentStep) {
+                                         // Highlight bar moved in the *current* step
+                                         const highlightLightness = 0.9;
+                                         bar.material.color.setHSL(bar.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
+                                         bar.material.emissive.copy(bar.material.color).multiplyScalar(0.4);
+                                    } else if (lastMoved !== -1 && lastMoved < this.currentStep) {
+                                        // Fade bars moved in *previous* steps
+                                        const stepsSinceMove = this.currentStep - lastMoved;
+                                        const fadeFactor = Math.max(0, 1 - (stepsSinceMove / fadeDuration));
+                                        
+                                        // Interpolate lightness between highlight and base
+                                        const highlightLightness = 0.9; 
+                                        const baseLightness = bar.userData.baseColor.getHSL({ h: 0, s: 0, l: 0 }).l;
+                                        const currentLightness = baseLightness + (highlightLightness - baseLightness) * fadeFactor;
+
+                                        bar.material.color.setHSL(
+                                            bar.userData.baseColor.getHSL({ h: 0, s: 0, l: 0 }).h,
+                                            1.0, 
+                                            currentLightness
+                                        );
+                                         bar.material.emissive.copy(bar.material.color).multiplyScalar(0.3);
+
+                                    } else { // lastMoved === -1 or > this.currentStep (e.g., during reset)
+                                         // Reset to base color if not moved or moved in future steps
+                                         if (!bar.material.color.equals(bar.userData.baseColor)) {
+                                             bar.material.color.copy(bar.userData.baseColor);
+                                             bar.material.emissive.copy(bar.userData.baseEmissive);
+                                         }
+                                    }
+                                } else if (bar.userData && bar.userData.type === 'arrayBar') {
+                                     // Ensure bars that were never moved are reset (e.g., after reset)
+                                     if (!bar.material.color.equals(bar.userData.baseColor)) {
+                                         bar.material.color.copy(bar.userData.baseColor);
+                                         bar.material.emissive.copy(bar.userData.baseEmissive);
+                                     }
+                                }
+                            });
+                        // }
+                    }
+                });
+
+                // --- 2. Clear Previous Transient Visuals ---
+                this.clearTransientVisuals();
                 
-                // Get current step bars
-                const currentStepGroup = this.scene.children.filter(child => 
-                    child.type === 'Group' && child.position.z === -this.currentStep * 5);
+                // --- 3. Get Bars for the Current Step ---
+                const currentStepZ = -this.currentStep * 5;
+                const currentStepGroup = this.scene.children.find(child => 
+                    child.type === 'Group' && Math.abs(child.position.z - currentStepZ) < 0.1);
                 
-                if (currentStepGroup.length === 0) return;
+                if (!currentStepGroup) return; // No bars for this step yet
                 
-                const bars = currentStepGroup[0].children;
-                
-                // Show comparisons for current step
-                if (this.showComparisons && this.currentStep < this.comparisons.length) {
-                    const comparison = this.comparisons[this.currentStep];
-                    this.visualizeComparison(bars, comparison);
+                // Get bars, ensuring they are sorted by originalIndex for reliable lookup
+                const bars = currentStepGroup.children
+                                .filter(c => c.userData.type === 'arrayBar')
+                                .sort((a, b) => a.userData.originalIndex - b.userData.originalIndex);
+                 if (bars.length === 0) return;
+
+                // --- 4. Show Comparisons for Current Step ---
+                const comparison = this.comparisons[this.currentStep];
+                if (this.showComparisons && comparison) {
+                    // Indices in 'comparison' refer to the state *before* this step potentially changed it.
+                    // We need to find the bars based on their values or track their current positions.
+                    // Simplification: Assume 'comparison' indices still map correctly to the bars array *for visualization*.
+                    // This might be inaccurate for sorts that drastically reorder within a step (like partition).
+                    this.visualizeComparison(bars, comparison, currentStepZ);
                 }
                 
-                // Show movements for current step
-                if (this.showMovement && this.currentStep < this.movements.length) {
-                    const movement = this.movements[this.currentStep];
-                    this.visualizeMovement(bars, movement);
+                // --- 5. Show Movements & Highlight for Current Step ---
+                const movement = this.movements[this.currentStep];
+                if (movement) { 
+                    // Indices in 'movement' refer to the state *before* this step.
+                    // Similar to comparisons, assume indices map correctly for visualization.
+                    this.visualizeMovement(bars, movement, currentStepZ, this.showMovement);
                 }
             },
-            
-            visualizeComparison(bars, comparison) {
+
+            visualizeComparison(bars, comparison, stepZ) {
                 const [idx1, idx2] = comparison;
                 
+                // Find bars based on the indices. Need robust way if indices change mid-step.
+                // Using the sorted 'bars' array based on originalIndex is a common approach.
                 if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
-                    const bar1 = bars[idx1];
-                    const bar2 = bars[idx2];
+                    // Find the actual bar objects corresponding to these indices in the *current* group
+                    const bar1 = bars.find(b => b.userData.currentIndex === idx1); // Or use originalIndex if mapping is stable
+                    const bar2 = bars.find(b => b.userData.currentIndex === idx2); // Or use originalIndex
+
+                    // Fallback if currentIndex wasn't updated reliably (use direct index access)
+                    const bar1Fallback = bars[idx1];
+                    const bar2Fallback = bars[idx2];
                     
-                    // Create curved line for comparison
-                    const curve = new THREE.QuadraticBezierCurve3(
-                        new THREE.Vector3(bar1.position.x, bar1.position.y + 2, 0),
-                        new THREE.Vector3((bar1.position.x + bar2.position.x) / 2, 
-                                        Math.max(bar1.position.y, bar2.position.y) + 15, 0),
-                        new THREE.Vector3(bar2.position.x, bar2.position.y + 2, 0)
+                    const finalBar1 = bar1 || bar1Fallback;
+                    const finalBar2 = bar2 || bar2Fallback;
+
+                    if (!finalBar1 || !finalBar2) {
+                         console.warn("Comparison bars not found for indices:", idx1, idx2, "at step", this.currentStep);
+                         return; 
+                    }
+
+                    // Use world position for accuracy, converting bar local pos to world pos
+                    const bar1Pos = new THREE.Vector3();
+                    finalBar1.getWorldPosition(bar1Pos); 
+                    bar1Pos.y += finalBar1.geometry.parameters.height / 2; // Adjust to top center
+
+                    const bar2Pos = new THREE.Vector3();
+                    finalBar2.getWorldPosition(bar2Pos);
+                    bar2Pos.y += finalBar2.geometry.parameters.height / 2; // Adjust to top center
+                    
+                    // Control point for the curve - higher up and between the bars
+                    const controlPoint = new THREE.Vector3(
+                        (bar1Pos.x + bar2Pos.x) / 2, 
+                        Math.max(bar1Pos.y, bar2Pos.y) + 10 + Math.abs(bar1Pos.x - bar2Pos.x) * 0.2, // Height adjusts with distance
+                        stepZ // Keep curve in the Z plane of the current step
                     );
+                    
+                    // Adjust bar positions to be relative to the scene origin if needed, or ensure curve uses world coords
+                    // Since we used getWorldPosition, bar1Pos/bar2Pos are world coords. Control point needs correct Z.
+                    
+                    const curve = new THREE.QuadraticBezierCurve3(bar1Pos, controlPoint, bar2Pos);
                     
                     const points = curve.getPoints(20);
                     const geometry = new THREE.BufferGeometry().setFromPoints(points);
                     const material = new THREE.LineBasicMaterial({ 
-                        color: 0xffff00,
-                        linewidth: 2,
+                        color: 0xffff00, // Yellow
+                        linewidth: 2,    // Note: linewidth > 1 may not work on all systems/drivers
                         transparent: true,
                         opacity: 0.7
                     });
                     
                     const line = new THREE.Line(geometry, material);
-                    line.userData = { type: 'comparisonLine' };
+                    line.userData = { type: 'comparisonLine' }; // Tag for easy removal
                     
                     this.scene.add(line);
-                    this.comparisonLines.push(line);
+                    this.comparisonLines.push(line); // Store reference
+                } else {
+                     console.warn("Invalid comparison indices:", idx1, idx2, "at step", this.currentStep);
                 }
             },
             
-            visualizeMovement(bars, movement) {
-                const [idx1, idx2] = movement;
+            visualizeMovement(bars, movement, stepZ, showTrail) {
+                const [idx1, idx2] = movement; // Often [targetIdx, sourceIdx] or [idxA, idxB] for swap
                 
-                if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
-                    const bar1 = bars[idx1];
-                    const bar2 = bars[idx2];
-                    
-                    // Create curved line geometry for movement
-                    const curve = new THREE.QuadraticBezierCurve3(
-                        new THREE.Vector3(bar1.position.x, bar1.position.y, 0),
-                        new THREE.Vector3((bar1.position.x + bar2.position.x) / 2, 
-                                        Math.max(bar1.position.y, bar2.position.y) + 10, 0),
-                        new THREE.Vector3(bar2.position.x, bar2.position.y, 0)
-                    );
-                    
-                    const points = curve.getPoints(20);
-                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    
-                    const material = new THREE.LineBasicMaterial({
-                        color: 0xff6600,
-                        linewidth: 2,
-                        transparent: true,
-                        opacity: 0.6
-                    });
-                    
-                    const line = new THREE.Line(geometry, material);
-                    line.userData = { type: 'movementTrail' };
-                    
-                    this.scene.add(line);
-                    this.movementTrails.push(line);
-                    
-                    // Highlight moved bars with intense color that fades over time
-                    bar1.userData.lastMoved = this.currentStep;
-                    bar2.userData.lastMoved = this.currentStep;
-                    
-                    // Set initial highlight color
-                    const hue1 = (bar1.userData.value / this.dataSize) * 0.8;
-                    const hue2 = (bar2.userData.value / this.dataSize) * 0.8;
-                    
-                    bar1.material.color.setHSL(hue1, 1.0, 0.8);
-                    bar1.material.emissive.setHSL(hue1, 1.0, 0.3);
-                    bar2.material.color.setHSL(hue2, 1.0, 0.8);
-                    bar2.material.emissive.setHSL(hue2, 1.0, 0.3);
+                // Find bars involved in the movement using indices from the *previous* state.
+                 if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
+                    // Find the actual bar objects corresponding to these indices
+                    const bar1 = bars.find(b => b.userData.currentIndex === idx1); // Or originalIndex
+                    const bar2 = bars.find(b => b.userData.currentIndex === idx2); // Or originalIndex
+
+                    // Fallback
+                    const bar1Fallback = bars[idx1];
+                    const bar2Fallback = bars[idx2];
+
+                    const finalBar1 = bar1 || bar1Fallback;
+                    const finalBar2 = bar2 || bar2Fallback; // May represent the same bar if it's a shift vs swap
+
+                    if (!finalBar1) { // We at least need the target bar
+                         console.warn("Movement bar not found for index:", idx1, "at step", this.currentStep);
+                         return;
+                    }
+
+                    // --- Mark Moved Bars for Highlighting/Fading ---
+                    // The updateVisualization function handles the actual color change based on this step marker.
+                    finalBar1.userData.lastMoved = this.currentStep;
+                     // Only mark bar2 if it's different from bar1 (swap vs shift/write)
+                    if (finalBar2 && finalBar1 !== finalBar2) { 
+                        finalBar2.userData.lastMoved = this.currentStep;
+                    }
+
+                    // --- Draw Movement Trail (if enabled) ---
+                    if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
+                         const bar1Pos = new THREE.Vector3();
+                         finalBar1.getWorldPosition(bar1Pos);
+                         // Use base of bar for movement trail start/end? Or center? Let's use center y.
+                         // bar1Pos.y += 0; 
+
+                         const bar2Pos = new THREE.Vector3();
+                         finalBar2.getWorldPosition(bar2Pos);
+                         // bar2Pos.y += 0;
+
+                        // Control point for the curve - lower down for movement?
+                        const controlPoint = new THREE.Vector3(
+                            (bar1Pos.x + bar2Pos.x) / 2, 
+                            Math.min(bar1Pos.y, bar2Pos.y) - 5 - Math.abs(bar1Pos.x - bar2Pos.x) * 0.1, // Lower curve
+                            stepZ // Keep curve in the Z plane
+                        );
+
+                        const curve = new THREE.QuadraticBezierCurve3(bar1Pos, controlPoint, bar2Pos);
+                        
+                        const points = curve.getPoints(20);
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        
+                        const material = new THREE.LineBasicMaterial({
+                            color: 0xff8800, // Orange
+                            linewidth: 2,
+                            transparent: true,
+                            opacity: 0.6
+                        });
+                        
+                        const line = new THREE.Line(geometry, material);
+                        line.userData = { type: 'movementTrail' }; // Tag for removal
+                        
+                        this.scene.add(line);
+                        this.movementTrails.push(line); // Store reference
+                    }
+                } else {
+                     console.warn("Invalid movement indices:", idx1, idx2, "at step", this.currentStep);
                 }
             },
             
@@ -1489,49 +1763,94 @@
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                // Skip auto camera movement if user is interacting
-                if (this.controls.enabled && this.controls.isUserInteracting) {
-                    this.stats.begin();
-                    this.renderer.render(this.scene, this.camera);
-                    this.stats.end();
-                    return;
-                }
-                
                 this.stats.begin();
                 
-                // Update camera position with smooth interpolation
-                if (this.camera.position.distanceTo(this.cameraTarget.position) > 0.1) {
-                    this.camera.position.lerp(this.cameraTarget.position, 0.05);
-                    // Update lookAt only during camera movement
-                    this.camera.lookAt(this.cameraTarget.lookAt);
-                    // Update controls target
-                    this.controls.target.lerp(this.cameraTarget.lookAt, 0.05);
-                    this.controls.update();
+                // Update controls (needed for damping and potentially updates lookAt)
+                this.controls.update(); 
+
+                // --- Camera Auto-Movement ---
+                // Only move camera automatically if not currently interacting 
+                // and animation has generated steps.
+                if (!this.isUserInteracting && this.arrays.length > 1) {
+                    // Smoothly interpolate camera position and target towards the calculated target
+                    // Use a small threshold to stop lerping when close enough
+                    const positionThreshold = 0.05;
+                    const targetThreshold = 0.05;
+                    const lerpFactor = 0.04; // Adjust lerp factor for speed
+
+                    if (this.camera.position.distanceTo(this.cameraTarget.position) > positionThreshold) {
+                        this.camera.position.lerp(this.cameraTarget.position, lerpFactor);
+                    } else {
+                        // Snap to final position if very close
+                        this.camera.position.copy(this.cameraTarget.position);
+                    }
+
+                    if (this.controls.target.distanceTo(this.cameraTarget.lookAt) > targetThreshold) {
+                         this.controls.target.lerp(this.cameraTarget.lookAt, lerpFactor);
+                         // controls.update() should handle calling camera.lookAt(controls.target)
+                    } else {
+                         // Snap to final target if very close
+                         this.controls.target.copy(this.cameraTarget.lookAt);
+                    }
+                } else if (this.isUserInteracting) {
+                     // If user is interacting, update the target to follow their manual control
+                     // This prevents the camera snapping back when interaction stops
+                     this.cameraTarget.position.copy(this.camera.position);
+                     this.cameraTarget.lookAt.copy(this.controls.target);
                 }
                 
-                // Step through algorithm if animating
+                // --- Algorithm Step Advancement ---
                 if (this.isAnimating) {
-                    // Add delay based on animation speed
-                    if (this.frame % (11 - this.animationSpeed) === 0) {
-                        // Store old step to detect changes
+                    // Calculate delay based on animation speed (higher speed = lower delay)
+                    const delayFactor = Math.max(1, 60 / this.animationSpeed); // Target frames per step
+                    if (this.frame % Math.round(delayFactor) === 0) {
                         const oldStep = this.currentStep;
+                        this.advanceStep(); // This increments currentStep and updates visualization
                         
-                        // Advance to next step
-                        this.advanceStep();
-                        
-                        // Only update camera target if step actually changed
-                        if (oldStep !== this.currentStep && this.currentStep > 5) {
-                            // Calculate target z position based on current step
-                            const targetZ = -this.currentStep * 5 - 20; // -20 to look ahead
+                        // --- Update Camera Target ---
+                        // Update target only if the step actually changed and we are not interacting
+                        if (oldStep !== this.currentStep && !this.isUserInteracting) {
+                            // Calculate target Z based on current step, looking slightly ahead
+                            const lookAheadSteps = Math.min(10, Math.max(3, Math.floor(this.dataSize * 0.2))); // Look ahead based on size
+                            const targetStepZ = -(this.currentStep + lookAheadSteps) * 5;
+                            const currentStepZ = -this.currentStep * 5;
+
+                            // Adjust distance and height based on data size for better framing
+                            const cameraDistance = 60 + this.dataSize * 1.8; 
+                            const cameraHeight = 80 + this.dataSize * 0.8; 
+
+                            // Set the target lookAt point (where the camera should point)
+                            // Look towards the Z depth between current and upcoming steps
+                            this.cameraTarget.lookAt.set(
+                                0, // Look towards center X
+                                0, // Look towards base Y
+                                (currentStepZ + targetStepZ) / 2 // Look at midpoint Z
+                            ); 
+
+                            // Set the target position (where the camera should move to)
+                            // Maintain a similar viewing angle relative to the lookAt point
+                            // Calculate offset based on current camera angle or a fixed overhead angle
+                            const offset = new THREE.Vector3();
+                            offset.copy(this.camera.position).sub(this.controls.target); // Get current offset
+                            offset.normalize().multiplyScalar(cameraDistance); // Scale offset to desired distance
+
+                            // Simple overhead positioning:
+                            this.cameraTarget.position.set(
+                                0, // Center X
+                                cameraHeight, 
+                                this.cameraTarget.lookAt.z + cameraDistance * 0.7 // Position behind lookAt Z
+                            ); 
                             
-                            // Update camera target for smooth interpolation
-                            // Position camera more overhead for clearer view of all values
-                            this.cameraTarget.position.set(20, 150, targetZ);
-                            // Look directly at the array
-                            this.cameraTarget.lookAt.set(0, 0, targetZ - 10);
+                            // Alternative: Maintain current horizontal angle (using spherical coords could be smoother)
+                            // let currentAngle = Math.atan2(this.camera.position.x - this.controls.target.x, this.camera.position.z - this.controls.target.z);
+                            // this.cameraTarget.position.set(
+                            //     this.cameraTarget.lookAt.x + Math.sin(currentAngle) * cameraDistance * 0.8, 
+                            //     cameraHeight, 
+                            //     this.cameraTarget.lookAt.z + Math.cos(currentAngle) * cameraDistance * 0.8
+                            // ); 
+
                         }
                     }
-                    
                     this.frame++;
                 }
                 
@@ -1544,6 +1863,7 @@
             // Reset the visualization
             reset() {
                 this.isAnimating = false;
+                this.isUserInteracting = false; // Reset interaction flag
                 this.currentStep = 0;
                 this.frame = 0;
                 
