@@ -1188,13 +1188,13 @@
 
                     // Emissive intensity based on proximity (1 = correct, 0 = furthest)
                     const proximity = 1.0 - normalizedDistance;
-                    // More subtle glow effect
-                    const emissiveIntensity = Math.pow(proximity, 3) * 1.5; // Max intensity 1.5
+                    // Very subtle glow effect
+                    const emissiveIntensity = Math.pow(proximity, 4) * 0.5; // Max intensity 0.5
                     
-                    // Emissive color is a slightly brighter version of the base color
+                    // Emissive color is just a tiny bit brighter than base color
                     const emissiveColor = baseColor.clone().lerp(
-                        new THREE.Color().setHSL(hue, 0.7, 0.8), // Brighter but same hue
-                        Math.pow(proximity, 0.8) // More gradual transition
+                        new THREE.Color().setHSL(hue, 0.8, 0.7), // Slightly brighter
+                        Math.pow(proximity, 2) * 0.3 // Very subtle transition
                     );
 
                     let material;
@@ -1203,7 +1203,7 @@
                         material = new THREE.MeshStandardMaterial({
                             color: baseColor,
                             emissive: emissiveColor,
-                            emissiveIntensity: Math.min(emissiveIntensity, 3.0),
+                            emissiveIntensity: Math.min(emissiveIntensity, 0.5),
                             metalness: 0.8, // Increased metalness for stronger reflections
                             roughness: 0.2, // Lower roughness for shinier surface
                             envMapIntensity: 1.2, // Stronger environment map influence
