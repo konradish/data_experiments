@@ -814,6 +814,11 @@
             comparisonLines: [],
             movementTrails: [],
             stats: null,
+            isUserInteracting: false, // Flag for camera interaction
+            cameraTarget: { // For smooth camera animation
+                position: new THREE.Vector3(),
+                lookAt: new THREE.Vector3()
+            },
             
             init() {
                 // Create Three.js scene
