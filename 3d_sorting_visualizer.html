@@ -836,13 +836,21 @@
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 document.body.appendChild(this.renderer.domElement);
                 
-                // Orbit controls with reduced sensitivity
+                // Orbit controls with modified mouse buttons
                 this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 this.controls.enableDamping = true;
                 this.controls.dampingFactor = 0.25;
-                this.controls.rotateSpeed = 0.5;  // Reduce rotation speed
-                this.controls.zoomSpeed = 0.6;    // Reduce zoom speed
-                this.controls.panSpeed = 0.5;     // Reduce pan speed
+                this.controls.rotateSpeed = 0.5;
+                this.controls.zoomSpeed = 0.6;
+                this.controls.panSpeed = 0.5;
+                // Swap mouse buttons - left for pan, right for rotate
+                this.controls.mouseButtons = {
+                    LEFT: THREE.MOUSE.PAN,
+                    MIDDLE: THREE.MOUSE.DOLLY,
+                    RIGHT: THREE.MOUSE.ROTATE
+                };
+                // Disable auto-rotate
+                this.controls.autoRotate = false;
                 
                 // Add lights
                 const ambientLight = new THREE.AmbientLight(0x404040);
@@ -1341,6 +1349,25 @@
             },
             
             updateVisualization() {
+                // Fade colors of previously moved bars
+                const currentStepBars = this.scene.children.filter(child => 
+                    child.type === 'Group' && child.position.z === -this.currentStep * 5);
+                
+                if (currentStepBars.length > 0) {
+                    currentStepBars[0].children.forEach(bar => {
+                        if (bar.userData.lastMoved !== undefined) {
+                            const stepsSinceMove = this.currentStep - bar.userData.lastMoved;
+                            if (stepsSinceMove > 0) {
+                                const fadeFactor = Math.max(0, 1 - (stepsSinceMove * 0.1));
+                                const hue = (bar.userData.value / this.dataSize) * 0.8;
+                                const lightness = 0.3 + (0.5 * fadeFactor);
+                                bar.material.color.setHSL(hue, 1.0, lightness);
+                                bar.material.emissive.setHSL(hue, 1.0, lightness * 0.3);
+                            }
+                        }
+                    });
+                }
+
                 // Clear existing comparison lines and movement trails
                 this.scene.children.forEach(child => {
                     if (child.userData && (child.userData.type === 'comparisonLine' || child.userData.type === 'movementTrail')) {
@@ -1379,12 +1406,15 @@
                     const bar1 = bars[idx1];
                     const bar2 = bars[idx2];
                     
-                    // Create line geometry
-                    const points = [
+                    // Create curved line for comparison
+                    const curve = new THREE.QuadraticBezierCurve3(
                         new THREE.Vector3(bar1.position.x, bar1.position.y + 2, 0),
+                        new THREE.Vector3((bar1.position.x + bar2.position.x) / 2, 
+                                        Math.max(bar1.position.y, bar2.position.y) + 15, 0),
                         new THREE.Vector3(bar2.position.x, bar2.position.y + 2, 0)
-                    ];
+                    );
                     
+                    const points = curve.getPoints(20);
                     const geometry = new THREE.BufferGeometry().setFromPoints(points);
                     const material = new THREE.LineBasicMaterial({ 
                         color: 0xffff00,
@@ -1432,15 +1462,32 @@
                     this.scene.add(line);
                     this.movementTrails.push(line);
                     
-                    // Update color of the bars that moved
-                    bar1.material.emissive.setRGB(0.8, 0.2, 0.2);
-                    bar2.material.emissive.setRGB(0.2, 0.8, 0.2);
+                    // Highlight moved bars with intense color that fades over time
+                    bar1.userData.lastMoved = this.currentStep;
+                    bar2.userData.lastMoved = this.currentStep;
+                    
+                    // Set initial highlight color
+                    const hue1 = (bar1.userData.value / this.dataSize) * 0.8;
+                    const hue2 = (bar2.userData.value / this.dataSize) * 0.8;
+                    
+                    bar1.material.color.setHSL(hue1, 1.0, 0.8);
+                    bar1.material.emissive.setHSL(hue1, 1.0, 0.3);
+                    bar2.material.color.setHSL(hue2, 1.0, 0.8);
+                    bar2.material.emissive.setHSL(hue2, 1.0, 0.3);
                 }
             },
             
             // Main animation loop
             animate() {
                 requestAnimationFrame(() => this.animate());
+                
+                // Skip auto camera movement if user is interacting
+                if (this.controls.enabled && this.controls.isUserInteracting) {
+                    this.stats.begin();
+                    this.renderer.render(this.scene, this.camera);
+                    this.stats.end();
+                    return;
+                }
                 
                 this.stats.begin();
                 
