@@ -1911,20 +1911,19 @@
                    // --- Draw Movement Trail (if enabled) ---
                    if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
                        const bar1Pos = new THREE.Vector3();
-                         finalBar1.getWorldPosition(bar1Pos);
-                         // Use base of bar for movement trail start/end? Or center? Let's use center y.
-                         // bar1Pos.y += 0; 
+                       finalBar1.getWorldPosition(bar1Pos);
+                       bar1Pos.y += finalBar1.geometry.parameters.height / 2; // Top center like comparison arcs
 
-                         const bar2Pos = new THREE.Vector3();
-                         finalBar2.getWorldPosition(bar2Pos);
-                         // bar2Pos.y += 0;
+                       const bar2Pos = new THREE.Vector3();
+                       finalBar2.getWorldPosition(bar2Pos);
+                       bar2Pos.y += finalBar2.geometry.parameters.height / 2; // Top center
 
-                        // Control point for the curve - lower down for movement?
-                        const controlPoint = new THREE.Vector3(
-                            (bar1Pos.x + bar2Pos.x) / 2, 
-                            Math.min(bar1Pos.y, bar2Pos.y) - 5 - Math.abs(bar1Pos.x - bar2Pos.x) * 0.1, // Lower curve
-                            stepZ // Keep curve in the Z plane
-                        );
+                       // Control point higher up like comparison arcs
+                       const controlPoint = new THREE.Vector3(
+                           (bar1Pos.x + bar2Pos.x) / 2,
+                           Math.max(bar1Pos.y, bar2Pos.y) + 10 + Math.abs(bar1Pos.x - bar2Pos.x) * 0.2,
+                           stepZ
+                       );
 
                         const curve = new THREE.QuadraticBezierCurve3(bar1Pos, controlPoint, bar2Pos);
                         
