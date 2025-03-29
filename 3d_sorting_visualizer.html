@@ -823,7 +823,8 @@
             init() {
                 // Create Three.js scene
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x111122);
+                // Slightly lighter background now that scene lights are removed
+                this.scene.background = new THREE.Color(0x202030); 
                 
                 // Camera setup - more overhead angle
                 this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -855,13 +856,15 @@
                 // Disable auto-rotate
                 this.controls.autoRotate = false;
                 
-                // Add lights
-                const ambientLight = new THREE.AmbientLight(0x404040);
-                this.scene.add(ambientLight);
+                // Listen for control interaction events
+                this.controls.addEventListener('start', () => { this.isUserInteracting = true; });
+                this.controls.addEventListener('end', () => { 
+                    // Optional: Add a small delay before resuming auto-camera if desired
+                    // setTimeout(() => { this.isUserInteracting = false; }, 500); 
+                    this.isUserInteracting = false; 
+                });
                 
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-                directionalLight.position.set(1, 1, 1);
-                this.scene.add(directionalLight);
+                // Lights removed - relying on emissive materials
                 
                 // Add grid with extended size
                 const gridHelper = new THREE.GridHelper(400, 40, 0x555555, 0x333333);
@@ -1027,26 +1030,37 @@
                     const distanceFromCorrect = Math.abs(index - correctIndex);
                     const normalizedDistance = 1 - (distanceFromCorrect / this.dataSize);
                     
-                    // Color based on closeness to correct position
-                    // More correct = brighter color
-                    let color;
+                    // Color and Emissive based on closeness to correct position
+                    const hue = (value / this.dataSize) * 0.8; // Base hue on value
+                    let color = new THREE.Color();
+                    let emissiveColor = new THREE.Color();
+                    let emissiveIntensity = 0;
+
                     if (distanceFromCorrect === 0) {
-                        // Perfect position - bright white
-                        color = new THREE.Color(1, 1, 1);
+                        // Perfect position - bright color with strong glow
+                        const lightness = 0.8; // Bright base color
+                        color.setHSL(hue, 1.0, lightness);
+                        emissiveColor.copy(color); // Glow with the same color
+                        emissiveIntensity = 0.8; // Strong glow
                     } else {
-                        // Base hue on value (rainbow gradient like before)
-                        const hue = (value / this.dataSize) * 0.8;
+                        // Incorrect position - dimmer color, glow based on closeness
+                        // Base lightness lower when incorrect
+                        const baseLightness = 0.4; 
+                        // Additional lightness based on closeness (0 = far, 0.3 = close)
+                        const closenessLightness = normalizedDistance * 0.3; 
+                        color.setHSL(hue, 1.0, baseLightness + closenessLightness);
                         
-                        // Brightness (lightness) based on closeness to correct position
-                        // Range from 0.3 (far) to 0.9 (close)
-                        const lightness = 0.3 + (normalizedDistance * 0.6);
-                        
-                        color = new THREE.Color().setHSL(hue, 1.0, lightness);
+                        emissiveColor.copy(color); // Glow with the bar's color
+                        // Emissive intensity based on closeness (0 = far, 0.5 = close)
+                        emissiveIntensity = normalizedDistance * 0.5; 
                     }
                     
                     const material = new THREE.MeshStandardMaterial({ 
                         color: color,
-                        emissive: color.clone().multiplyScalar(0.3)
+                        emissive: emissiveColor,
+                        emissiveIntensity: emissiveIntensity
+                        // metalness: 0.1, // Optional: Adjust material properties
+                        // roughness: 0.6
                     });
                     
                     const bar = new THREE.Mesh(geometry, material);
@@ -1065,7 +1079,8 @@
                         correctPosition: (index === correctIndex),
                         lastMoved: -1, // Step number when this bar was last involved in a move
                         baseColor: color.clone(), // Store the calculated base color
-                        baseEmissive: material.emissive.clone() // Store base emissive color
+                        baseEmissive: emissiveColor.clone(), // Store base emissive color
+                        baseEmissiveIntensity: emissiveIntensity // Store base emissive intensity
                     };
                     
                     stepGroup.add(bar);
@@ -1715,12 +1730,24 @@
                     }
 
                     // --- Mark Moved Bars for Highlighting/Fading ---
-                    // The updateVisualization function handles the actual color change based on this step marker.
+                    // Set the step marker. The actual color/intensity change happens in updateVisualization's loop.
                     finalBar1.userData.lastMoved = this.currentStep;
                      // Only mark bar2 if it's different from bar1 (swap vs shift/write)
                     if (finalBar2 && finalBar1 !== finalBar2) { 
                         finalBar2.userData.lastMoved = this.currentStep;
                     }
+                    // Force an immediate visual update for the highlighted bars in this step
+                    const highlightLightness = 0.9;
+                    const highlightIntensity = 1.0;
+                    finalBar1.material.color.setHSL(finalBar1.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
+                    finalBar1.material.emissive.copy(finalBar1.material.color); // Emissive matches bright color
+                    finalBar1.material.emissiveIntensity = highlightIntensity;
+                    if (finalBar2 && finalBar1 !== finalBar2) {
+                        finalBar2.material.color.setHSL(finalBar2.userData.baseColor.getHSL({h:0,s:0,l:0}).h, 1.0, highlightLightness);
+                        finalBar2.material.emissive.copy(finalBar2.material.color);
+                        finalBar2.material.emissiveIntensity = highlightIntensity;
+                    }
+
 
                     // --- Draw Movement Trail (if enabled) ---
                     if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
@@ -1746,10 +1773,10 @@
                         const geometry = new THREE.BufferGeometry().setFromPoints(points);
                         
                         const material = new THREE.LineBasicMaterial({
-                            color: 0xff8800, // Orange
-                            linewidth: 2,
-                            transparent: true,
-                            opacity: 0.6
+                            color: 0x00ffff, // Bright Cyan
+                            linewidth: 3,    // Increased width (may not render thicker on all systems)
+                            transparent: false, // Make it solid
+                            opacity: 0.9      // Slightly less than fully opaque if needed
                         });
                         
                         const line = new THREE.Line(geometry, material);
@@ -1796,9 +1823,11 @@
                          // Snap to final target if very close
                          this.controls.target.copy(this.cameraTarget.lookAt);
                     }
+                    // Ensure controls.update() is called AFTER lerping target
+                    // this.controls.update(); // Already called at the start of animate loop
                 } else if (this.isUserInteracting) {
-                     // If user is interacting, update the target to follow their manual control
-                     // This prevents the camera snapping back when interaction stops
+                     // If user is interacting, update the *target* state to match the *current* camera state.
+                     // This effectively pauses the auto-camera by making its target the current user position.
                      this.cameraTarget.position.copy(this.camera.position);
                      this.cameraTarget.lookAt.copy(this.controls.target);
                 }
