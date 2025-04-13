@@ -38,6 +38,12 @@ These visualizations are created to explore the potential for machine learning t
 
 - A modern web browser with WebGL support
 
+### Running Online
+
+The visualizations are also available online:
+
+- [Data Experiments](https://konradish.github.io/data_experiments)
+
 ### Running Locally
 
 1. Clone the repository:
