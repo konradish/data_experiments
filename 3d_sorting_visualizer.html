@@ -121,6 +121,7 @@
             <option value="selection">Selection Sort</option>
             <option value="quick">Quick Sort</option>
             <option value="merge">Merge Sort</option>
+            <option value="radix">Radix Sort</option>
         </select>
         <select id="dataSize">
             <option value="20">20 Elements</option>
@@ -1282,6 +1283,9 @@
                     case 'merge':
                         this.mergeSort(array, 0, array.length - 1);
                         break;
+                    case 'radix':
+                        this.radixSort(array);
+                        break;
                 }
                 
                 // Ensure auxiliary arrays are padded to match the final arrays length
@@ -1673,7 +1677,97 @@
                 }
                  // Ensure comparisons/movements arrays are padded by caller (mergeSort)
             },
-            
+
+            // Helper function to get the maximum value in an array
+            getMax(arr) {
+                let max = arr[0];
+                for (let i = 1; i < arr.length; i++) {
+                    if (arr[i] > max) {
+                        max = arr[i];
+                    }
+                }
+                return max;
+            },
+
+            // Helper function for Radix Sort: Counting Sort based on digit represented by exp
+            countingSortForRadix(array, exp) {
+                const n = array.length;
+                const output = new Array(n).fill(0);
+                const count = new Array(10).fill(0); // Digits 0-9
+                let stepCounter = this.arrays.length - 1;
+
+                // Store count of occurrences in count[]
+                for (let i = 0; i < n; i++) {
+                    const digit = Math.floor(array[i] / exp) % 10;
+                    count[digit]++;
+                    // Record state? Maybe too granular. Let's record after placement.
+                    // Optional: Visualize counting phase? Could add comparisons like [i, null] representing examining element i.
+                    this.comparisons[stepCounter] = [i, null]; // Indicate examining element i for its digit
+                    this.movements[stepCounter] = null;
+                    this.arrays.push([...array]); // Record state for each element examined
+                    stepCounter++;
+                }
+
+                // Change count[i] so that count[i] now contains actual
+                // position of this digit in output[]
+                for (let i = 1; i < 10; i++) {
+                    count[i] += count[i - 1];
+                }
+
+                // Build the output array
+                // Iterate backwards to maintain stability
+                for (let i = n - 1; i >= 0; i--) {
+                    const digit = Math.floor(array[i] / exp) % 10;
+                    const outputIndex = count[digit] - 1;
+                    output[outputIndex] = array[i];
+                    count[digit]--;
+
+                    // Record movement: element from index 'i' moves to 'outputIndex'
+                    this.comparisons[stepCounter] = null; // No comparison during placement
+                    // Movement needs careful thought. We are placing array[i] into output[outputIndex].
+                    // The visualization works on the *main* array. We update the main array *after* this loop.
+                    // Let's record the intended move: [outputIndex, i] (target, source)
+                    this.movements[stepCounter] = [outputIndex, i];
+                    // Record the state *before* the conceptual move happens in the main array visualization
+                    this.arrays.push([...array]);
+                    stepCounter++;
+                }
+
+                // Copy the output array to array[], so that array[] now
+                // contains sorted numbers according to current digit
+                for (let i = 0; i < n; i++) {
+                    // Check if a change actually occurred at this index before recording
+                    if (array[i] !== output[i]) {
+                         array[i] = output[i];
+                         // Record state *after* each element is placed back into the main array
+                         this.comparisons[stepCounter] = null;
+                         // Movement already recorded in the previous loop. Maybe highlight the placed element?
+                         this.movements[stepCounter] = [i, i]; // Indicate element 'i' is finalized for this pass
+                         this.arrays.push([...array]);
+                         stepCounter++;
+                    }
+                }
+                 // Nullify comparison/movement for the state *after* this pass finishes
+                 this.comparisons[stepCounter] = null;
+                 this.movements[stepCounter] = null;
+            },
+
+            radixSort(array) {
+                if (!array || array.length === 0) return;
+
+                // Find the maximum number to know number of digits
+                const max = this.getMax(array);
+
+                // Do counting sort for every digit. Note that instead
+                // of passing digit number, exp is passed. exp is 10^i
+                // where i is current digit number
+                for (let exp = 1; Math.floor(max / exp) > 0; exp *= 10) {
+                    this.countingSortForRadix(array, exp);
+                    // State after each full pass of counting sort is recorded within countingSortForRadix
+                }
+                // Final sorted state is the last one recorded by countingSortForRadix
+            },
+
             // Pad arrays after main sort call finishes
             padAuxiliaryArrays() {
                  while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
