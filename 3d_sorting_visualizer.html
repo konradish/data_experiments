@@ -1723,31 +1723,35 @@
                     count[digit]--;
 
                     // Record movement: element from index 'i' moves to 'outputIndex'
+                    // Record this *before* pushing the state, so the arc starts from the correct position
                     this.comparisons[stepCounter] = null; // No comparison during placement
-                    // Movement needs careful thought. We are placing array[i] into output[outputIndex].
-                    // The visualization works on the *main* array. We update the main array *after* this loop.
-                    // Let's record the intended move: [outputIndex, i] (target, source)
-                    this.movements[stepCounter] = [outputIndex, i];
+                    this.movements[stepCounter] = [outputIndex, i]; // Target index, Source index
                     // Record the state *before* the conceptual move happens in the main array visualization
                     this.arrays.push([...array]);
                     stepCounter++;
+                    // Nullify comparison/movement for the *next* state (which will be the next iteration's comparison/move)
+                    this.comparisons[stepCounter] = null;
+                    this.movements[stepCounter] = null;
                 }
 
                 // Copy the output array to array[], so that array[] now
                 // contains sorted numbers according to current digit
+                // Visualize the state *after* the full copy, not individual element copies
+                let changed = false;
                 for (let i = 0; i < n; i++) {
-                    // Check if a change actually occurred at this index before recording
                     if (array[i] !== output[i]) {
                          array[i] = output[i];
-                         // Record state *after* each element is placed back into the main array
-                         this.comparisons[stepCounter] = null;
-                         // Movement already recorded in the previous loop. Maybe highlight the placed element?
-                         this.movements[stepCounter] = [i, i]; // Indicate element 'i' is finalized for this pass
-                         this.arrays.push([...array]);
-                         stepCounter++;
+                         changed = true;
                     }
                 }
-                 // Nullify comparison/movement for the state *after* this pass finishes
+                // If the array changed after the copy, record the final state for this digit pass
+                if (changed) {
+                     this.comparisons[stepCounter] = null;
+                     this.movements[stepCounter] = null; // No specific movement for the final state view
+                     this.arrays.push([...array]);
+                     stepCounter++;
+                }
+                 // Nullify comparison/movement for the state *after* this pass finishes (start of next pass or end of sort)
                  this.comparisons[stepCounter] = null;
                  this.movements[stepCounter] = null;
             },
@@ -1970,103 +1974,99 @@
                      console.warn("Invalid comparison indices:", idx1, idx2, "at step", this.currentStep);
                 }
             },
-            
             visualizeMovement(bars, movement, stepZ, showTrail) {
-                if (!movement || !Array.isArray(movement)) return;
-                
-                const [idx1, idx2] = movement; // Often [targetIdx, sourceIdx] or [idxA, idxB] for swap
-                
-                // Find bars involved in the movement using indices from the *previous* state.
-                if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
-                    // Find the actual bar objects corresponding to these indices
-                    const bar1 = bars.find(b => b.userData.currentIndex === idx1); // Or originalIndex
-                    const bar2 = bars.find(b => b.userData.currentIndex === idx2); // Or originalIndex
+                if (!movement || !Array.isArray(movement) || movement.length !== 2) return; // Ensure valid format
 
-                    // Fallback
-                    const bar1Fallback = bars[idx1];
-                    const bar2Fallback = bars[idx2];
+                const [idx1, idx2] = movement; // [targetIdx, sourceIdx] or [idxA, idxB] for swap
 
-                    const finalBar1 = bar1 || bar1Fallback;
-                    const finalBar2 = bar2 || bar2Fallback; // May represent the same bar if it's a shift vs swap
+                // Find the source bar (element being moved) based on source index (idx2)
+                // Use currentIndex if available and reliable, otherwise fallback to direct index
+                const sourceBar = bars.find(b => b.userData.currentIndex === idx2) || bars[idx2];
 
-                    if (!finalBar1) { // We at least need the target bar
-                         console.warn("Movement bar not found for index:", idx1, "at step", this.currentStep);
-                        return;
-                   }
+                if (!sourceBar) {
+                    console.warn("Movement source bar not found for index:", idx2, "at step", this.currentStep);
+                    return;
+                }
 
-                   // --- Bar Highlighting is Removed ---
-                   // Glow is determined by correctness in createArrayBars.
+                // --- Bar Highlighting Removed ---
 
-                   // --- Draw Movement Trail (if enabled) ---
-                   if (showTrail && finalBar1 && finalBar2 && finalBar1 !== finalBar2) { // Only draw trail for actual swaps/moves between different positions
-                       const bar1Pos = new THREE.Vector3();
-                       finalBar1.getWorldPosition(bar1Pos);
-                       bar1Pos.y += finalBar1.geometry.parameters.height / 2; // Top center like comparison arcs
+                // --- Draw Movement Trail (if enabled) ---
+                if (showTrail) {
+                    const sourcePos = new THREE.Vector3();
+                    sourceBar.getWorldPosition(sourcePos);
+                    sourcePos.y += sourceBar.geometry.parameters.height / 2; // Top center of source bar
 
-                       const bar2Pos = new THREE.Vector3();
-                       finalBar2.getWorldPosition(bar2Pos);
-                       bar2Pos.y += finalBar2.geometry.parameters.height / 2; // Top center
+                    let targetPos = new THREE.Vector3();
 
-                       // Control point higher up like comparison arcs
-                       const controlPoint = new THREE.Vector3(
-                           (bar1Pos.x + bar2Pos.x) / 2,
-                           Math.max(bar1Pos.y, bar2Pos.y) + 10 + Math.abs(bar1Pos.x - bar2Pos.x) * 0.2,
-                           stepZ
-                       );
+                    // Determine if this is a swap or a placement (like in Radix/Counting sort)
+                    // Simple heuristic: If idx1 and idx2 refer to existing bars in the current step, assume swap.
+                    // Otherwise, assume placement where idx1 is a target position index.
+                    const targetBar = bars.find(b => b.userData.currentIndex === idx1) || bars[idx1];
 
-                        const curve = new THREE.QuadraticBezierCurve3(bar1Pos, controlPoint, bar2Pos);
-                        
-                        const points = curve.getPoints(20);
-                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                        
-                        // Create a gradient material for movement arcs
-                        const material = new THREE.LineBasicMaterial({
-                            color: 0xff00ff, // Bright magenta for swaps
-                            linewidth: 3,
-                            transparent: true,
-                            opacity: 0.95,
-                            dashSize: 0.3,
-                            gapSize: 0.1
-                        });
-                        
-                        // Add a second, thinner arc in complementary color
-                        const highlightMaterial = new THREE.LineBasicMaterial({
-                            color: 0x00ffff, // Cyan highlight
-                            linewidth: 1,
-                            transparent: true,
-                            opacity: 0.8
-                        });
-                        
-                        // Create main arc that persists until reset
-                        const mainLine = new THREE.Line(geometry, material);
-                        mainLine.userData = {
-                            type: 'movementTrail',
-                            stepCreated: this.currentStep,
-                            fromIndex: idx1,
-                            toIndex: idx2,
-                            persistFor: Infinity // Never auto-remove
-                        };
-                        this.scene.add(mainLine);
-                        this.movementTrails.push(mainLine);
+                    if (targetBar && sourceBar !== targetBar) {
+                        // Assume SWAP: Target is the top-center of the target bar
+                        targetBar.getWorldPosition(targetPos);
+                        targetPos.y += targetBar.geometry.parameters.height / 2;
+                    } else {
+                        // Assume PLACEMENT (Radix/Counting) or self-move [i, i]:
+                        // Calculate target position based on target index (idx1)
+                        const spacing = 2; // Need this value - get from app properties
+                        const targetX = (idx1 - this.dataSize / 2) * spacing;
+                        // Target Y should be the top of the *source* bar, as it's the same element moving
+                        const targetY = sourcePos.y; // Use source bar's top Y
+                        targetPos.set(targetX, targetY, stepZ); // Use current step's Z
 
-                        // Create highlight arc that also persists
-                        const highlightLine = new THREE.Line(geometry, highlightMaterial);
-                        highlightLine.userData = {
-                            type: 'movementTrail',
-                            stepCreated: this.currentStep,
-                            fromIndex: idx1,
-                            toIndex: idx2,
-                            persistFor: Infinity // Never auto-remove
-                        };
-                        this.scene.add(highlightLine);
-                        this.movementTrails.push(highlightLine);
-
-                        // Make arcs more visible by increasing their size
-                        material.linewidth = 4;
-                        highlightMaterial.linewidth = 2;
+                        // If it's a self-move [i, i] (like Radix finalization), don't draw a trail
+                        if (idx1 === idx2) {
+                             return; // Don't draw trail for [i, i] movements
+                        }
                     }
-                } else {
-                     console.warn("Invalid movement indices:", idx1, idx2, "at step", this.currentStep);
+
+                    // Avoid drawing zero-length trails if source/target are identical
+                    if (sourcePos.distanceTo(targetPos) < 0.01) {
+                        return;
+                    }
+
+                    // Control point calculation remains the same
+                    const controlPoint = new THREE.Vector3(
+                        (sourcePos.x + targetPos.x) / 2,
+                        Math.max(sourcePos.y, targetPos.y) + 10 + Math.abs(sourcePos.x - targetPos.x) * 0.2,
+                        stepZ // Keep control point in the current Z plane
+                    );
+
+                    const curve = new THREE.QuadraticBezierCurve3(sourcePos, controlPoint, targetPos);
+
+                    const points = curve.getPoints(20);
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+
+                    // Material setup remains the same
+                    const material = new THREE.LineBasicMaterial({
+                        color: 0xff00ff, // Bright magenta for swaps/moves
+                        linewidth: 3,    // Adjusted linewidth
+                        transparent: true,
+                        opacity: 0.95,
+                        // Removed dashing for potentially clearer trails
+                        // dashSize: 0.3,
+                        // gapSize: 0.1
+                    });
+
+                    const highlightMaterial = new THREE.LineBasicMaterial({
+                        color: 0x00ffff, // Cyan highlight
+                        linewidth: 1,    // Adjusted linewidth
+                        transparent: true,
+                        opacity: 0.8
+                    });
+
+                    // Create and add lines
+                    const mainLine = new THREE.Line(geometry, material);
+                    mainLine.userData = { type: 'movementTrail', stepCreated: this.currentStep, persistFor: Infinity };
+                    this.scene.add(mainLine);
+                    this.movementTrails.push(mainLine);
+
+                    const highlightLine = new THREE.Line(geometry, highlightMaterial);
+                    highlightLine.userData = { type: 'movementTrail', stepCreated: this.currentStep, persistFor: Infinity };
+                    this.scene.add(highlightLine);
+                    this.movementTrails.push(highlightLine);
                 }
             },
             
