@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Sorting Algorithm Visualization</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #controlsContainer {
+            display: flex;
+            flex-wrap: wrap; /* Allow panels to wrap on smaller screens */
+            padding: 5px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ccc;
+            z-index: 100; /* Keep controls above visualization */
+        }
+        #info, #controls {
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px;
+            flex: 1; /* Allow panels to grow */
+            min-width: 250px; /* Minimum width before wrapping */
+            max-width: 400px; /* Optional max width */
+        }
+        select, button {
+            margin: 5px 0;
+            padding: 5px;
+            width: 100%;
+            box-sizing: border-box; /* Include padding in width */
+        }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 5px;
+            background: rgba(255,255,255,0.1);
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .collapsible-header::after { content: '[-]'; font-weight: bold; margin-left: 10px; }
+        .collapsed .collapsible-header::after { content: '[+]'; }
+        .collapsed .collapsible-content { display: none; }
+
+        #visualizationContainer {
+            flex-grow: 1; /* Take remaining vertical space */
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            padding: 10px;
+            background: #e8e8e8;
+            position: relative; /* Needed for absolute positioning of lines if implemented */
+        }
+        .step-row {
+            margin-bottom: 10px; /* Space between steps */
+            padding: 5px;
+            border: 1px solid #ccc;
+            background: #fff;
+            white-space: nowrap; /* Prevent bars from wrapping within a row */
+            min-height: 50px; /* Ensure row has some height */
+            position: relative; /* For potential line drawing */
+        }
+        .bar {
+            display: inline-block;
+            background-color: steelblue;
+            margin-right: 2px;
+            vertical-align: bottom; /* Align bars at the bottom */
+            transition: background-color 0.3s ease, height 0.3s ease; /* Smooth transitions */
+            position: relative; /* For potential tooltips or labels */
+        }
+        /* Highlighting classes */
+        .bar.compared-a, .bar.compared-b {
+            outline: 2px solid yellow;
+            outline-offset: -2px;
+        }
+        .bar.moving-source {
+            outline: 2px solid magenta;
+             outline-offset: -2px;
+        }
+         .bar.moving-target {
+            outline: 2px solid cyan;
+             outline-offset: -2px;
+        }
+        .bar.correct {
+             /* Optional: Add distinct style for bars in correct final position */
+             /* border-bottom: 3px solid limegreen; */
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 600px) {
+            #controlsContainer { flex-direction: column; }
+            #info, #controls { max-width: none; width: auto; } /* Take full width */
+            .bar { margin-right: 1px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="controlsContainer">
+        <div id="info"> <!-- Add 'collapsed' class here to start collapsed -->
+            <h4 class="collapsible-header">Info / Help</h4>
+            <div class="collapsible-content">
+                <h2>2D Sorting Algorithm Visualization</h2>
+                <p>This visualization shows sorting algorithms step-by-step in 2D, scrolling downwards.</p>
+                <ul>
+                    <li>Each row represents a state of the array.</li>
+                    <li>Bars are colored by value and correctness.</li>
+                    <li>Yellow outline: Comparison</li>
+                    <li>Magenta/Cyan outline: Movement</li>
+                </ul>
+                <p>View the <a href="3d_sorting_visualizer.html" style="color:lightblue">3D Version</a>.</p>
+            </div>
+        </div>
+        <div id="controls"> <!-- Add 'collapsed' class here to start collapsed -->
+            <h4 class="collapsible-header">Controls</h4>
+            <div class="collapsible-content">
+                <h3>Settings</h3>
+                <select id="algorithm">
+                    <option value="bubble">Bubble Sort</option>
+                    <option value="insertion">Insertion Sort</option>
+                    <option value="selection">Selection Sort</option>
+                    <option value="quick">Quick Sort</option>
+                    <option value="merge">Merge Sort</option>
+                    <option value="radix">Radix Sort</option>
+                </select>
+                <select id="dataSize">
+                    <option value="20">20 Elements</option>
+                    <option value="50">50 Elements</option>
+                    <option value="100">100 Elements</option>
+                </select>
+                <select id="dataPattern">
+                    <option value="random">Random</option>
+                    <option value="nearlySorted">Nearly Sorted</option>
+                    <option value="reversed">Reversed</option>
+                </select>
+                <button id="startBtn">Start Sorting</button>
+                <button id="resetBtn">Reset</button>
+                <div>
+                    <label><input type="checkbox" id="showComparisons" checked> Show Comparisons (Outline)</label>
+                </div>
+                <div>
+                    <label><input type="checkbox" id="showMovement" checked> Show Movement (Outline)</label>
+                </div>
+                <!-- Removed Glow Checkbox -->
+                <div>
+                    <label>Animation Speed: <input type="range" id="speed" min="1" max="10" value="5"></label>
+                </div>
+            </div> <!-- Close collapsible-content -->
+        </div>
+    </div>
+
+    <div id="visualizationContainer">
+        <!-- Sorting steps will be added here -->
+    </div>
+
+    <!-- Import Lodash (still useful for deep comparison) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+    <!-- Import Sorting Algorithms (JS file is reused) -->
+    <script src="sorting_algorithms.js"></script>
+
+    <script>
+        // Main application
+        const app = {
+            visualizationContainer: null,
+            arrays: [],
+            comparisons: [],
+            movements: [],
+            currentStep: 0,
+            isAnimating: false,
+            animationSpeed: 5, // Steps per second (approx)
+            showComparisons: true,
+            showMovement: true,
+            dataSize: 20,
+            algorithm: 'bubble',
+            dataPattern: 'random',
+            maxBarHeight: 40, // Max height for bars in pixels
+            barWidth: 10, // Width of bars in pixels
+            frame: 0, // Frame counter for animation timing
+
+            init() {
+                this.visualizationContainer = document.getElementById('visualizationContainer');
+
+                // Initialize event listeners
+                this.initEventListeners();
+
+                // Generate initial data
+                this.generateData();
+
+                // Start animation loop (runs continuously but only advances steps when isAnimating)
+                this.animate();
+            },
+
+            initEventListeners() {
+                document.getElementById('algorithm').addEventListener('change', (e) => {
+                    this.algorithm = e.target.value;
+                });
+
+                document.getElementById('dataSize').addEventListener('change', (e) => {
+                    this.dataSize = parseInt(e.target.value);
+                    this.reset();
+                });
+
+                document.getElementById('dataPattern').addEventListener('change', (e) => {
+                    this.dataPattern = e.target.value;
+                    this.reset();
+                });
+
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    if (!this.isAnimating && this.arrays.length > 0 && this.currentStep === 0) {
+                        // Only start if not already animating and at the beginning
+                        this.runSortingAlgorithm(); // This calculates all steps
+                        this.isAnimating = true; // Start the animation loop advancing steps
+                    } else if (this.isAnimating) {
+                        // Optional: Pause functionality
+                        // this.isAnimating = false;
+                    } else {
+                         // Optional: Resume functionality
+                         // this.isAnimating = true;
+                    }
+                });
+
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.reset();
+                });
+
+                document.getElementById('showComparisons').addEventListener('change', (e) => {
+                    this.showComparisons = e.target.checked;
+                    // Update immediately if not animating, otherwise handled by advanceStep
+                    if (!this.isAnimating) this.updateVisualizationHighlights(this.currentStep);
+                });
+
+                document.getElementById('showMovement').addEventListener('change', (e) => {
+                    this.showMovement = e.target.checked;
+                     if (!this.isAnimating) this.updateVisualizationHighlights(this.currentStep);
+                });
+
+                document.getElementById('speed').addEventListener('input', (e) => {
+                    // Linear speed mapping for simplicity in 2D
+                    this.animationSpeed = parseInt(e.target.value);
+                });
+
+                // Add listeners for collapsible panels
+                document.querySelectorAll('.collapsible-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        header.parentElement.classList.toggle('collapsed');
+                    });
+                });
+                 // Start panels collapsed on smaller screens (mobile)
+                 if (window.innerWidth <= 768) {
+                     const infoPanel = document.getElementById('info');
+                     const controlsPanel = document.getElementById('controls');
+                     if (infoPanel) infoPanel.classList.add('collapsed');
+                     if (controlsPanel) controlsPanel.classList.add('collapsed');
+                 }
+            },
+
+            generateData() {
+                // Clear existing array data and visualization
+                this.clearVisualization();
+                this.arrays = [];
+                this.comparisons = [];
+                this.movements = [];
+                this.currentStep = 0;
+                this.isAnimating = false; // Stop animation
+
+                // Generate initial array based on selected pattern
+                let initialArray = [];
+                switch (this.dataPattern) {
+                    case 'random':
+                        initialArray = Array.from({ length: this.dataSize }, () => Math.floor(Math.random() * this.dataSize) + 1);
+                        break;
+                    case 'nearlySorted':
+                        initialArray = Array.from({ length: this.dataSize }, (_, i) => i + 1);
+                        const swaps = Math.floor(this.dataSize * 0.1);
+                        for (let i = 0; i < swaps; i++) {
+                            const idx1 = Math.floor(Math.random() * this.dataSize);
+                            const idx2 = Math.floor(Math.random() * this.dataSize);
+                            [initialArray[idx1], initialArray[idx2]] = [initialArray[idx2], initialArray[idx1]];
+                        }
+                        break;
+                    case 'reversed':
+                        initialArray = Array.from({ length: this.dataSize }, (_, i) => this.dataSize - i);
+                        break;
+                }
+
+                // Store initial array state
+                this.arrays.push([...initialArray]);
+
+                // Create visualization of the initial array state (step 0)
+                this.createArrayBars(this.arrays[0], 0);
+                this.scrollToBottom(); // Ensure initial state is visible
+            },
+
+            createArrayBars(array, step) {
+                const row = document.createElement('div');
+                row.className = 'step-row';
+                row.dataset.step = step; // Store step number
+
+                // Adjust bar width based on data size to fit container
+                const containerWidth = this.visualizationContainer.clientWidth - 20; // Account for padding
+                this.barWidth = Math.max(1, Math.floor(containerWidth / this.dataSize) - 2); // Ensure at least 1px width and 2px margin
+
+                array.forEach((value, index) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    const height = (value / this.dataSize) * this.maxBarHeight;
+                    bar.style.height = `${height}px`;
+                    bar.style.width = `${this.barWidth}px`;
+
+                    // Coloring based on value and correctness (similar to 3D)
+                    const correctIndex = value - 1;
+                    const distanceFromCorrect = Math.abs(index - correctIndex);
+                    const normalizedDistance = this.dataSize > 1 ? distanceFromCorrect / (this.dataSize - 1) : 0;
+                    const proximity = 1.0 - normalizedDistance;
+
+                    const hue = (value / this.dataSize) * 0.8; // 0.0 to 0.8 (Red to Blue/Purple)
+                    const lightness = 0.5 + proximity * 0.2; // Brighter when closer to correct position (0.5 to 0.7)
+                    const saturation = 0.6 + proximity * 0.3; // More saturated when closer (0.6 to 0.9)
+
+                    bar.style.backgroundColor = `hsl(${hue * 360}, ${saturation * 100}%, ${lightness * 100}%)`;
+                    bar.title = `Value: ${value}\nIndex: ${index}\nCorrect: ${correctIndex}`; // Tooltip
+
+                    if (distanceFromCorrect === 0) {
+                        bar.classList.add('correct');
+                    }
+
+                    // Store data for highlighting
+                    bar.dataset.index = index;
+                    bar.dataset.value = value;
+
+                    row.appendChild(bar);
+                });
+
+                this.visualizationContainer.appendChild(row);
+                return row; // Return the created row element
+            },
+
+            runSortingAlgorithm() {
+                // Get a copy of the initial array
+                const array = [...this.arrays[0]];
+
+                // Reset algorithm steps (keep initial state)
+                this.arrays = [this.arrays[0]];
+                this.comparisons = [null]; // Placeholder for step 0
+                this.movements = [null]; // Placeholder for step 0
+
+                // Execute selected sorting algorithm (populates app.arrays, app.comparisons, app.movements)
+                try {
+                    switch (this.algorithm) {
+                        case 'bubble':
+                            SortingAlgorithms.bubbleSort(this, array);
+                            break;
+                        case 'insertion':
+                            SortingAlgorithms.insertionSort(this, array);
+                            break;
+                        case 'selection':
+                            SortingAlgorithms.selectionSort(this, array);
+                            break;
+                        case 'quick':
+                            SortingAlgorithms.quickSort(this, array, 0, array.length - 1);
+                            break;
+                        case 'merge':
+                            SortingAlgorithms.mergeSort(this, array, 0, array.length - 1);
+                            break;
+                        case 'radix':
+                            SortingAlgorithms.radixSort(this, array);
+                            break;
+                    }
+                } catch (error) {
+                    console.error("Error during sorting algorithm execution:", error);
+                    alert(`An error occurred during ${this.algorithm}: ${error.message}`);
+                    this.reset(); // Reset state on error
+                    return;
+                }
+
+                // Ensure auxiliary arrays are padded
+                this.padAuxiliaryArrays();
+
+                // Reset current step for animation start
+                this.currentStep = 0;
+                this.frame = 0;
+                // Visualization is handled by advanceStep in the animation loop
+            },
+
+            padAuxiliaryArrays() {
+                 while (this.comparisons.length < this.arrays.length) this.comparisons.push(null);
+                 while (this.movements.length < this.arrays.length) this.movements.push(null);
+            },
+
+            advanceStep() {
+                if (this.currentStep < this.arrays.length - 1) {
+                    this.currentStep++;
+
+                    // Create visualization for this new step
+                    const newRow = this.createArrayBars(this.arrays[this.currentStep], this.currentStep);
+
+                    // Apply highlights to the *newly created* row based on the *previous* step's action
+                    this.updateVisualizationHighlights(this.currentStep);
+
+                    // Scroll container to show the new step
+                    this.scrollToBottom();
+                } else {
+                    // Animation complete
+                    this.isAnimating = false;
+                    // Optional: Highlight the final sorted state
+                    this.updateVisualizationHighlights(this.currentStep); // Apply final highlights if any
+                }
+            },
+
+            // Updates highlights (comparison/movement outlines) for a specific step row
+            updateVisualizationHighlights(step) {
+                 const row = this.visualizationContainer.querySelector(`.step-row[data-step="${step}"]`);
+                 if (!row) return;
+
+                 // Clear previous highlights for this row
+                 row.querySelectorAll('.bar').forEach(bar => {
+                     bar.classList.remove('compared-a', 'compared-b', 'moving-source', 'moving-target');
+                 });
+
+                 // Apply comparison highlights
+                 const comparison = this.comparisons[step];
+                 if (this.showComparisons && comparison && Array.isArray(comparison)) {
+                     const [idx1, idx2] = comparison;
+                     const bar1 = row.querySelector(`.bar[data-index="${idx1}"]`);
+                     const bar2 = row.querySelector(`.bar[data-index="${idx2}"]`);
+                     if (bar1) bar1.classList.add('compared-a');
+                     // idx2 might be null in some cases (like radix count)
+                     if (bar2 && idx2 !== null) bar2.classList.add('compared-b');
+                 }
+
+                 // Apply movement highlights
+                 const movement = this.movements[step];
+                 if (this.showMovement && movement && Array.isArray(movement)) {
+                     const [targetIdx, sourceIdx] = movement; // [target, source]
+                     const sourceBar = row.querySelector(`.bar[data-index="${sourceIdx}"]`);
+                     const targetBar = row.querySelector(`.bar[data-index="${targetIdx}"]`); // May not exist if it's a placement calculation
+
+                     // Highlight the source bar
+                     if (sourceBar) sourceBar.classList.add('moving-source');
+                     // Highlight the target position conceptually (e.g., the bar currently at that index)
+                     if (targetBar && targetBar !== sourceBar) {
+                         targetBar.classList.add('moving-target');
+                     } else if (targetIdx !== sourceIdx) {
+                         // If target index is different but bar doesn't exist there,
+                         // maybe add a placeholder or different highlight? For now, just source.
+                     }
+                 }
+            },
+
+            clearVisualization() {
+                if (this.visualizationContainer) {
+                    this.visualizationContainer.innerHTML = ''; // Clear all rows
+                }
+            },
+
+            scrollToBottom() {
+                if (this.visualizationContainer) {
+                    this.visualizationContainer.scrollTop = this.visualizationContainer.scrollHeight;
+                }
+            },
+
+            // Main animation loop
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                if (this.isAnimating) {
+                    // Calculate delay based on animation speed (higher speed = lower delay)
+                    // Aim for roughly 'animationSpeed' steps per second.
+                    const stepsPerSecond = this.animationSpeed;
+                    const delayFactor = Math.max(1, 60 / stepsPerSecond); // Target frames per step
+
+                    if (this.frame % Math.round(delayFactor) === 0) {
+                        this.advanceStep();
+                    }
+                    this.frame++;
+                }
+            },
+
+            // Reset the visualization
+            reset() {
+                this.isAnimating = false;
+                this.currentStep = 0;
+                this.frame = 0;
+                this.clearVisualization();
+                this.generateData(); // Regenerates initial data and displays step 0
+            }
+        };
+
+        // Initialize the application
+        window.addEventListener('load', () => {
+             try {
+                app.init();
+            } catch (e) {
+                console.error("Application initialization failed:", e);
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = `Initialization Error: ${e.message}. Check console.`;
+                errorDiv.style.color = 'red';
+                errorDiv.style.padding = '20px';
+                document.body.prepend(errorDiv); // Prepend to be visible
+            }
+        });
+    </script>
+</body>
+</html>

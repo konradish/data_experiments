@@ -12,7 +12,11 @@ This repository contains interactive web-based visualizations that render data a
 
 ### 3D Sorting Algorithm Visualizer
 
-The first visualization in this collection renders sorting algorithms in 3D space, with time as the third dimension. This approach reveals patterns in how different sorting algorithms operate.
+Renders sorting algorithms in 3D space, with time as the third dimension (Z-axis). This approach reveals spatial patterns in how different sorting algorithms operate over time.
+
+### 2D Sorting Algorithm Visualizer
+
+A more traditional view showing sorting algorithms step-by-step. Each row represents the state of the array after an operation, scrolling downwards as the sort progresses. Useful for observing the sequence of comparisons and swaps directly.
 
 **Features:**
 - **3D Time Progression**: Watch sorting algorithms evolve along the Z-axis
@@ -55,15 +59,16 @@ The visualizations are also available online:
 
 No build process or dependencies required! The visualizations use Three.js loaded via CDN.
 
-## Using the Sorting Visualizer
+## Using the Sorting Visualizers
 
-1. Open `sorting-visualizer.html` in your browser
-2. Select a sorting algorithm from the dropdown
-3. Choose the number of elements and data pattern
-4. Click "Start Sorting" to begin the visualization
-5. Use your mouse to rotate, zoom, and pan the 3D view
-6. Adjust animation speed with the slider
-7. Toggle comparison and movement visualizations with the checkboxes
+1.  Open `3d_sorting_visualizer.html` or `2d_sorting_visualizer.html` in your browser.
+2.  Select a sorting algorithm from the dropdown.
+3.  Choose the number of elements and data pattern.
+4.  Click "Start Sorting" to begin the visualization.
+5.  **3D View:** Use your mouse (Right-drag: Rotate, Scroll: Zoom, Left-drag: Pan) to explore.
+6.  **2D View:** The visualization scrolls down automatically.
+7.  Adjust animation speed with the slider.
+8.  Toggle comparison and movement visualizations with the checkboxes.
 
 ## Contributing
 
