@@ -3,20 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Sorting Algorithm Visualization</title>
+    <title>2D Sorting Algorithm Visualization (Dark Mode)</title>
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #1a1a1a; /* Dark background */
+            color: #e0e0e0; /* Light text */
+        }
         #controlsContainer {
             display: flex;
             flex-wrap: wrap; /* Allow panels to wrap on smaller screens */
             padding: 5px;
-            background: #f0f0f0;
-            border-bottom: 1px solid #ccc;
+            background: #2c2c2c; /* Darker controls background */
+            border-bottom: 1px solid #444; /* Darker border */
             z-index: 100; /* Keep controls above visualization */
         }
         #info, #controls {
-            background: rgba(0,0,0,0.7);
-            color: white;
+            background: #333; /* Dark panel background */
+            color: #f0f0f0; /* Light panel text */
             padding: 10px;
             border-radius: 5px;
             margin: 5px;
@@ -26,14 +34,29 @@
         }
         select, button {
             margin: 5px 0;
-            padding: 5px;
+            padding: 8px; /* Slightly larger padding */
             width: 100%;
             box-sizing: border-box; /* Include padding in width */
+            background-color: #555; /* Darker button/select background */
+            color: #f0f0f0; /* Light text */
+            border: 1px solid #777;
+            border-radius: 3px;
+        }
+        button:hover {
+             background-color: #666;
+        }
+        input[type="checkbox"], input[type="range"] {
+             margin-right: 5px;
+             vertical-align: middle;
+        }
+        label {
+             display: block; /* Ensure labels take full width */
+             margin: 5px 0;
         }
         .collapsible-header {
             cursor: pointer;
-            padding: 5px;
-            background: rgba(255,255,255,0.1);
+            padding: 8px; /* Increased padding */
+            background: #444; /* Darker header background */
             margin-bottom: 5px;
             border-radius: 3px;
             display: flex;
@@ -49,14 +72,14 @@
             overflow-y: auto; /* Enable vertical scrolling */
             overflow-x: hidden; /* Prevent horizontal scrolling */
             padding: 10px;
-            background: #e8e8e8;
+            background: #222; /* Dark visualization background */
             position: relative; /* Needed for absolute positioning of lines if implemented */
         }
         .step-row {
             margin-bottom: 10px; /* Space between steps */
             padding: 5px;
-            border: 1px solid #ccc;
-            background: #fff;
+            border: 1px solid #444; /* Darker border */
+            background: #2a2a2a; /* Slightly lighter dark for rows */
             white-space: nowrap; /* Prevent bars from wrapping within a row */
             min-height: 50px; /* Ensure row has some height */
             position: relative; /* For potential line drawing */
@@ -66,21 +89,25 @@
             background-color: steelblue;
             margin-right: 2px;
             vertical-align: bottom; /* Align bars at the bottom */
-            transition: background-color 0.3s ease, height 0.3s ease; /* Smooth transitions */
+            transition: background-color 0.3s ease, height 0.3s ease, box-shadow 0.3s ease; /* Added box-shadow transition */
             position: relative; /* For potential tooltips or labels */
+            box-shadow: none; /* Default no shadow */
         }
-        /* Highlighting classes */
+        /* Highlighting classes - Glow Effects */
         .bar.compared-a, .bar.compared-b {
-            outline: 2px solid yellow;
-            outline-offset: -2px;
+            /* Yellow glow */
+            box-shadow: 0 0 8px 3px rgba(255, 255, 0, 0.8);
+            z-index: 1; /* Bring highlighted bars slightly forward */
         }
         .bar.moving-source {
-            outline: 2px solid magenta;
-             outline-offset: -2px;
+            /* Magenta glow */
+            box-shadow: 0 0 8px 3px rgba(255, 0, 255, 0.8);
+            z-index: 1;
         }
          .bar.moving-target {
-            outline: 2px solid cyan;
-             outline-offset: -2px;
+            /* Cyan glow */
+            box-shadow: 0 0 8px 3px rgba(0, 255, 255, 0.8);
+            z-index: 1;
         }
         .bar.correct {
              /* Optional: Add distinct style for bars in correct final position */
@@ -106,9 +133,9 @@
                     <li>Each row represents a state of the array.</li>
                     <li>Bars are colored by value and correctness.</li>
                     <li>Yellow outline: Comparison</li>
-                    <li>Magenta/Cyan outline: Movement</li>
+                    <li>Magenta/Cyan glow: Movement</li>
                 </ul>
-                <p>View the <a href="3d_sorting_visualizer.html" style="color:lightblue">3D Version</a>.</p>
+                <p>View the <a href="3d_sorting_visualizer.html" style="color:#87CEFA">3D Version</a>.</p> <!-- LightSkyBlue for dark mode -->
             </div>
         </div>
         <div id="controls"> <!-- Add 'collapsed' class here to start collapsed -->
@@ -388,7 +415,15 @@
             },
 
             advanceStep() {
-                if (this.currentStep < this.arrays.length - 1) {
+                // Allow advancing up to and including the last step
+                if (this.currentStep < this.arrays.length) {
+                    // If currentStep is already the last index, just update highlights and stop
+                    if (this.currentStep === this.arrays.length - 1) {
+                        this.updateVisualizationHighlights(this.currentStep);
+                        this.isAnimating = false;
+                        return;
+                    }
+
                     this.currentStep++;
 
                     // Create visualization for this new step
