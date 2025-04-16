@@ -20,10 +20,10 @@ A more traditional view showing sorting algorithms step-by-step. Each row repres
 
 **Features:**
 - **3D Time Progression**: Watch sorting algorithms evolve along the Z-axis
-- **Multiple Algorithms**: Bubble Sort, Insertion Sort, Selection Sort, Quick Sort, and Merge Sort
-- **Correctness Coloring**: Elements are colored based on their proximity to correct positions
-- **Comparison Tracking**: Visualizes which elements are compared during sorting
-- **Movement Tracking**: Shows how elements move toward their final positions
+- **Multiple Algorithms**: Bubble Sort, Insertion Sort, Selection Sort, Quick Sort, Merge Sort, Radix Sort
+- **Correctness Coloring**: Elements are colored based on their value and proximity to correct positions
+- **Comparison Tracking**: Visualizes which elements are compared (3D: arcs, 2D: outlines)
+- **Movement Tracking**: Shows how elements move (3D: arcs, 2D: outlines)
 - **Interactive Controls**: Adjust visualization parameters in real-time
 - **Smart Camera**: Camera follows the sorting progression for optimal viewing
 
