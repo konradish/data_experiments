@@ -106,7 +106,7 @@
                 <li>Movement tracking with color fading</li>
                 <li>3D time progression to observe patterns</li>
             </ul>
-            <p>Rotate: Right-click + drag</p> 
+            <p>Rotate: Right-click + drag</p>
             <p>Zoom: Scroll wheel</p>
             <p>Pan: Left-click + drag</p>
             <p>View the <a href="2d_sorting_visualizer.html" style="color:lightblue">2D Version</a>.</p>
@@ -148,6 +148,15 @@
         <div>
             <label>Animation Speed: <input type="range" id="speed" min="1" max="10" value="5"></label>
         </div>
+        <!-- Timeline Slider -->
+        <div>
+            <label>Timeline: <input type="range" id="stepSlider" min="0" max="0" value="0" style="width: 100%;"></label>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8em;">
+                <span>Start</span>
+                <span id="currentStepDisplay">0/0</span>
+                <span>End</span>
+            </div>
+        </div>
         </div> <!-- Close collapsible-content -->
     </div>
 
@@ -160,7 +169,7 @@
             isWebGLAvailable: function () {
                 try {
                     const canvas = document.createElement('canvas');
-                    return !!(window.WebGLRenderingContext && 
+                    return !!(window.WebGLRenderingContext &&
                             (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
                 } catch (e) {
                     return false;
@@ -923,7 +932,7 @@
                 position: new THREE.Vector3(),
                 lookAt: new THREE.Vector3()
             },
-            
+
             init() {
                 // Check WebGL support first
                 if (!WEBGL.isWebGLAvailable()) {
@@ -936,25 +945,25 @@
                     // Create Three.js scene
                     this.scene = new THREE.Scene();
                     // Slightly lighter background now that scene lights are removed
-                    this.scene.background = new THREE.Color(0x202030); 
+                    this.scene.background = new THREE.Color(0x202030);
                 } catch (e) {
                     console.error("Failed to create scene:", e);
                     return;
                 }
-                
+
                 // Camera setup - more overhead angle
                 this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
                 // Start slightly ahead (more negative Z)
-                this.camera.position.set(0, 80, -50); 
+                this.camera.position.set(0, 80, -50);
                 this.camera.lookAt(0, 0, -70); // Look slightly further ahead initially
-                
+
                 // Initialize camera target state
                 this.cameraTarget.position.copy(this.camera.position);
                 this.cameraTarget.lookAt.copy(this.controls ? this.controls.target : new THREE.Vector3(0, 0, 0));
-                
+
                 // Renderer setup with error handling
                 try {
-                    this.renderer = new THREE.WebGLRenderer({ 
+                    this.renderer = new THREE.WebGLRenderer({
                         antialias: true,
                         powerPreference: "high-performance"
                     });
@@ -967,7 +976,7 @@
                 this.renderer.toneMappingExposure = 1.5;
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 document.body.appendChild(this.renderer.domElement);
-                
+
                 // Orbit controls with modified mouse buttons
                 this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 this.controls.enableDamping = true;
@@ -983,82 +992,82 @@
                 };
                 // Disable auto-rotate
                 this.controls.autoRotate = false;
-                
+
                 // Listen for control interaction events
                 this.controls.addEventListener('start', () => { this.isUserInteracting = true; });
-                this.controls.addEventListener('end', () => { 
+                this.controls.addEventListener('end', () => {
                     // Optional: Add a small delay before resuming auto-camera if desired
-                    // setTimeout(() => { this.isUserInteracting = false; }, 500); 
-                    this.isUserInteracting = false; 
+                    // setTimeout(() => { this.isUserInteracting = false; }, 500);
+                    this.isUserInteracting = false;
                 });
-                
+
                 // Enhanced lighting setup
                 const ambientLight = new THREE.AmbientLight(0x404040, 0.8); // Brighter ambient
                 this.scene.add(ambientLight);
-                
+
                 // Stronger directional light from multiple angles
                 const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
                 directionalLight1.position.set(1, 1, 1).normalize();
                 this.scene.add(directionalLight1);
-                
+
                 const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.8);
                 directionalLight2.position.set(-1, 0.5, -1).normalize();
                 this.scene.add(directionalLight2);
-                
+
                 // Add grid with extended size
                 const gridHelper = new THREE.GridHelper(400, 40, 0x555555, 0x333333);
                 this.scene.add(gridHelper);
-                
+
                 // Add x, y, z axes
                 const axesHelper = new THREE.AxesHelper(50);
                 this.scene.add(axesHelper);
-                
+
                 // Stats
                 this.stats = new Stats();
                 this.stats.showPanel(0);
                 document.body.appendChild(this.stats.dom);
-                
+
                 // Initialize event listeners
                 this.initEventListeners();
-                
+
                 // Generate initial data
                 this.generateData();
-                
+
                 // Start animation loop
                 this.animate();
             },
-            
+
             initEventListeners() {
                 document.getElementById('algorithm').addEventListener('change', (e) => {
                     this.algorithm = e.target.value;
                 });
-                
+
                 document.getElementById('dataSize').addEventListener('change', (e) => {
                     this.dataSize = parseInt(e.target.value);
                     this.reset();
                 });
-                
+
                 document.getElementById('dataPattern').addEventListener('change', (e) => {
                     this.dataPattern = e.target.value;
                     this.reset();
                 });
-                
+
                 document.getElementById('startBtn').addEventListener('click', () => {
                     if (!this.isAnimating) {
                         this.runSortingAlgorithm();
                         this.isAnimating = true;
                     }
                 });
-                
+
                 document.getElementById('resetBtn').addEventListener('click', () => {
                     this.reset();
                 });
-                
+
                 document.getElementById('showComparisons').addEventListener('change', (e) => {
                     this.showComparisons = e.target.checked;
                     this.updateVisualization();
                 });
-                
+
                 document.getElementById('showMovement').addEventListener('change', (e) => {
                     this.showMovement = e.target.checked;
                     this.updateVisualization();
@@ -1068,12 +1077,25 @@
                     this.showGlow = e.target.checked;
                     this.updateBarMaterials();
                 });
-                
+
                 document.getElementById('speed').addEventListener('input', (e) => {
                     // Make speed non-linear (faster at higher values)
-                    this.animationSpeed = Math.pow(parseInt(e.target.value), 1.5); 
+                    this.animationSpeed = Math.pow(parseInt(e.target.value), 1.5);
                 });
-                
+
+                // Listener for the timeline slider
+                document.getElementById('stepSlider').addEventListener('input', (e) => {
+                    // Pause animation if running
+                    if (this.isAnimating) {
+                        this.isAnimating = false;
+                    }
+                    // Set current step directly from slider
+                    this.currentStep = parseInt(e.target.value);
+                    // Update visualization to match the selected step
+                    this.updateVisualizationForStep(this.currentStep);
+                });
+
+
                 window.addEventListener('resize', () => {
                     this.camera.aspect = window.innerWidth / window.innerHeight;
                     this.camera.updateProjectionMatrix();
@@ -1094,17 +1116,17 @@
                     if (controlsPanel) controlsPanel.classList.add('collapsed');
                 }
             },
-            
+
             generateData() {
                 // Clear any existing array data
                 this.arrays = [];
                 this.comparisons = [];
                 this.movements = [];
                 this.currentStep = 0;
-                
+
                 // Generate initial array based on selected pattern
                 let initialArray = [];
-                
+
                 switch (this.dataPattern) {
                     case 'random':
                         initialArray = Array.from({ length: this.dataSize }, () => Math.floor(Math.random() * this.dataSize) + 1);
@@ -1123,28 +1145,28 @@
                         initialArray = Array.from({ length: this.dataSize }, (_, i) => this.dataSize - i);
                         break;
                 }
-                
+
                 // Store initial array
                 this.arrays.push([...initialArray]);
-                
+
                 // Create visualization of initial array
                 this.createVisualization();
             },
-            
+
             createVisualization() {
                 // Clear existing visualization elements
                 this.clearVisualization();
-                
+
                 // Create bars for the initial array
                 this.createArrayBars(this.arrays[0], 0);
             },
-            
+
             clearVisualization() {
                 // Remove all existing array bars, comparison lines, and movement trails
                 for (let i = this.scene.children.length - 1; i >= 0; i--) {
                     const child = this.scene.children[i];
-                    if (child.type === 'Group' || 
-                        (child.userData && (child.userData.type === 'arrayBar' || 
+                    if (child.type === 'Group' ||
+                        (child.userData && (child.userData.type === 'arrayBar' ||
                                             child.userData.type === 'comparisonLine' ||
                                             child.userData.type === 'movementTrail'))) {
                         // Dispose geometry and material to free GPU memory
@@ -1160,21 +1182,21 @@
                         this.scene.remove(child);
                     }
                 }
-                
+
                 // Clear comparison lines and movement trails using the dedicated function
                 this.clearComparisonAndMovementVisuals();
             },
-            
+
             createArrayBars(array, step) {
                 const spacing = 2;
                 const barWidth = 1;
                 const maxHeight = 40;
-                
+
                 // Create a group for this step
                 const stepGroup = new THREE.Group();
                 stepGroup.position.z = -step * 5; // Position each step along z-axis
                 this.scene.add(stepGroup);
-                
+
                 // Create bars
                 array.forEach((value, index) => {
                     const height = (value / this.dataSize) * maxHeight;
@@ -1195,7 +1217,7 @@
                     const proximity = 1.0 - normalizedDistance;
                     // Very subtle glow effect
                     const emissiveIntensity = Math.pow(proximity, 4) * 0.5; // Max intensity 0.5
-                    
+
                     // Emissive color is just a tiny bit brighter than base color
                     const emissiveColor = baseColor.clone().lerp(
                         new THREE.Color().setHSL(hue, 0.8, 0.7), // Slightly brighter
@@ -1229,7 +1251,7 @@
                         }
                     } catch (e) {
                         console.warn("Failed to create reflective material, using fallback:", e);
-                        material = new THREE.MeshBasicMaterial({ 
+                        material = new THREE.MeshBasicMaterial({
                             color: baseColor,
                             envMap: this.scene.environment
                         });
@@ -1257,19 +1279,22 @@
 
                     stepGroup.add(bar);
                 });
-                
+
                 return stepGroup;
             },
-            
+
             runSortingAlgorithm() {
                 // Get a copy of the initial array
                 const array = [...this.arrays[0]];
-                
+
                 // Reset algorithm steps
                 this.algorithmSteps = [];
                 this.comparisons = [];
                 this.movements = [];
-                
+                // Keep initial array state, clear subsequent states
+                this.arrays = [this.arrays[0]];
+
+
                 // Execute selected sorting algorithm using functions from SortingAlgorithms object
                 switch (this.algorithm) {
                     case 'bubble':
@@ -1291,12 +1316,19 @@
                         SortingAlgorithms.radixSort(this, array);
                         break;
                 }
-                
+
                 // Ensure auxiliary arrays are padded to match the final arrays length
                 this.padAuxiliaryArrays();
 
                 // Visualize all recorded steps
                 this.visualizeAlgorithmSteps();
+
+                // Update slider range to match the number of steps
+                const slider = document.getElementById('stepSlider');
+                slider.max = Math.max(0, this.arrays.length - 1);
+                slider.value = this.currentStep;
+                document.getElementById('currentStepDisplay').textContent =
+                    `${this.currentStep}/${Math.max(0, this.arrays.length - 1)}`;
             },
 
             // Pad arrays after main sort call finishes
@@ -1308,40 +1340,93 @@
             visualizeAlgorithmSteps() {
                 // Clear existing visualization
                 this.clearVisualization();
-                
+
                 // Only create visualization for initial array at first
                 this.createArrayBars(this.arrays[0], 0);
-                
+
                 // Reset current step
                 this.currentStep = 0;
-                
+
                 // Update comparisons and movements for current step
                 this.updateVisualization();
             },
-            
+
             // Called from animation loop when animating
             advanceStep() {
                 if (this.currentStep < this.arrays.length - 1) {
                     this.currentStep++;
-                    
+
+                    // Update slider to match current step
+                    const slider = document.getElementById('stepSlider');
+                    slider.value = this.currentStep;
+                    document.getElementById('currentStepDisplay').textContent =
+                        `${this.currentStep}/${Math.max(0, this.arrays.length - 1)}`;
+
                     // Create visualization for this step only if it doesn't exist yet
                     const stepZ = -this.currentStep * 5;
-                    const existingGroup = this.scene.children.find(c => 
+                    const existingGroup = this.scene.children.find(c =>
                         c.type === 'Group' && Math.abs(c.position.z - stepZ) < 0.1);
-                    
+
                     if (!existingGroup) {
                         this.createArrayBars(this.arrays[this.currentStep], this.currentStep);
                         // Update materials based on current glow setting for newly created bars
                         this.updateBarMaterials();
                     }
-                    
+
                     this.updateVisualization();
                 } else {
                     // Animation complete
                     this.isAnimating = false;
                 }
             },
-            
+
+            // Updates visualization for a specific step (used by slider)
+            updateVisualizationForStep(step) {
+                // Ensure step is within valid range
+                this.currentStep = Math.max(0, Math.min(step, this.arrays.length - 1));
+
+                // Update slider position and display
+                const slider = document.getElementById('stepSlider');
+                slider.value = this.currentStep;
+                document.getElementById('currentStepDisplay').textContent =
+                    `${this.currentStep}/${Math.max(0, this.arrays.length - 1)}`;
+
+                // Create visualizations for all steps up to current if needed
+                for (let i = 0; i <= this.currentStep; i++) {
+                    const stepZ = -i * 5;
+                    const existingGroup = this.scene.children.find(c =>
+                        c.type === 'Group' && Math.abs(c.position.z - stepZ) < 0.1);
+
+                    if (!existingGroup && this.arrays[i]) {
+                        this.createArrayBars(this.arrays[i], i);
+                        // Update materials based on current glow setting for newly created bars
+                        this.updateBarMaterials();
+                    }
+                }
+
+                // Update camera target to focus on current step
+                if (!this.isUserInteracting) {
+                    const currentStepZ = -this.currentStep * 5;
+                    const lookAheadSteps = 5; // Fixed look-ahead distance for manual stepping
+
+                    this.cameraTarget.lookAt.set(
+                        0, // Center X
+                        0, // Center Y
+                        currentStepZ - (lookAheadSteps * 2.5) // Look ahead a bit
+                    );
+
+                    this.cameraTarget.position.set(
+                        0, // Center X
+                        80, // Height
+                        currentStepZ + 50 // Position camera behind current step
+                    );
+                }
+
+                // Update visualization elements
+                this.updateVisualization();
+            },
+
+
             // Clears both comparison lines and movement trails (used by clearVisualization)
             clearComparisonAndMovementVisuals() {
                  this.comparisonLines.forEach(line => {
@@ -1357,25 +1442,25 @@
             // Clears only movement trails (used by updateVisualization)
             clearMovementTrails() {
                 // Only clear trails during reset - otherwise they persist
-                if (!this.isAnimating) {
-                    this.movementTrails.forEach(obj => {
-                        if (obj.geometry) obj.geometry.dispose();
-                        if (obj.material) {
-                            if (Array.isArray(obj.material)) {
-                                obj.material.forEach(m => m.dispose());
-                            } else {
-                                obj.material.dispose();
-                            }
+                // Correction: Trails should be cleared and redrawn for the *current* step
+                // when the step changes (either by animation or slider).
+                // So, clear all movement trails currently in the scene.
+                this.movementTrails.forEach(obj => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) {
+                            obj.material.forEach(m => m.dispose());
+                        } else {
+                            obj.material.dispose();
                         }
-                        this.scene.remove(obj);
-                    });
-                    this.movementTrails = [];
-                }
+                    }
+                    this.scene.remove(obj);
+                });
+                this.movementTrails = [];
             },
 
-            // Updates visualization elements (lines, trails) for the CURRENT step
+            // Updates all bars' materials based on current glow setting
             updateBarMaterials() {
-                // Update all bars' materials based on current glow setting
                 this.scene.children.forEach(group => {
                     if (group.type === 'Group') {
                         group.children.forEach(bar => {
@@ -1383,16 +1468,37 @@
                                 const material = bar.material;
                                 if (material.emissive) {
                                     // Always calculate fresh glow based on current position
-                                    const distanceFromCorrect = Math.abs(bar.userData.currentIndex - (bar.userData.value - 1));
-                                    const normalizedDistance = distanceFromCorrect / (this.dataSize - 1);
-                                    const proximity = 1.0 - normalizedDistance;
-                                    const emissiveIntensity = Math.pow(proximity, 3) * 1.5;
-                                    
-                                    // Apply glow setting
-                                    material.emissiveIntensity = this.showGlow ? emissiveIntensity : 0;
-                                    material.emissive = this.showGlow ? 
-                                        bar.userData.baseEmissive : new THREE.Color(0x000000);
-                                    material.needsUpdate = true;
+                                    // Need to find the bar's current index in the *current* step's array
+                                    // This is tricky. Let's simplify: glow is based on its value's final sorted position.
+                                    // The 'isCorrectPosition' flag stored in userData is better for this.
+                                    // Or, calculate distance from correct index based on the value.
+                                    const correctIndex = bar.userData.value - 1;
+                                    // Find the bar's current index in the array *for its step*
+                                    // This requires iterating through the array for that step...
+                                    // A simpler approach: the glow is inherent to the bar's value and its position *in that step*.
+                                    // The initial calculation in createArrayBars is based on the index *within that step's array*.
+                                    // Let's stick to that - the glow reflects how "sorted" that specific bar is *at that moment*.
+                                    // The initial calculation in createArrayBars is correct for this.
+                                    // We just need to apply the showGlow setting.
+
+                                    // Recalculate based on the bar's index *within its step's array*
+                                    const stepArray = this.arrays[bar.userData.step];
+                                    if (stepArray) {
+                                        const currentIndexInStep = stepArray.indexOf(bar.userData.value);
+                                        if (currentIndexInStep !== -1) {
+                                            const correctIndex = bar.userData.value - 1;
+                                            const distanceFromCorrect = Math.abs(currentIndexInStep - correctIndex);
+                                            const normalizedDistance = distanceFromCorrect / (this.dataSize - 1);
+                                            const proximity = 1.0 - normalizedDistance;
+                                            const emissiveIntensity = Math.pow(proximity, 3) * 1.5;
+
+                                            material.emissiveIntensity = this.showGlow ? emissiveIntensity : 0;
+                                            // Keep the baseEmissive color calculated initially
+                                            material.emissive = this.showGlow ?
+                                                bar.userData.baseEmissive : new THREE.Color(0x000000);
+                                            material.needsUpdate = true;
+                                        }
+                                    }
                                 }
                             }
                         });
@@ -1400,101 +1506,108 @@
                 });
             },
 
+
+            // Updates visualization elements (lines, trails) for the CURRENT step
             updateVisualization() {
                 // Bar appearance (color/glow) is now static per step, set in createArrayBars.
                 // We only need to manage comparison lines and movement trails here.
 
-                // --- 1. Clear Previous Movement Trails ONLY ---
-                // Comparison lines persist until a full reset.
-                this.clearMovementTrails();
+                // --- 1. Clear Previous Comparison Lines and Movement Trails ---
+                // Comparison lines and movement trails should only show for the *current* step.
+                this.clearComparisonAndMovementVisuals(); // Clears both
 
                 // --- 2. Get Bars for the Current Step ---
                 const currentStepZ = -this.currentStep * 5;
-                const currentStepGroup = this.scene.children.find(child => 
+                const currentStepGroup = this.scene.children.find(child =>
                     child.type === 'Group' && Math.abs(child.position.z - currentStepZ) < 0.1);
-                
-                if (!currentStepGroup) return; // No bars for this step yet
-                
-                // Get bars, ensuring they are sorted by originalIndex for reliable lookup
-                const bars = currentStepGroup.children
-                                .filter(c => c.userData.type === 'arrayBar')
-                                .sort((a, b) => a.userData.originalIndex - b.userData.originalIndex);
-                 if (bars.length === 0) return;
 
-                // --- 4. Show Comparisons for Current Step ---
+                if (!currentStepGroup) return; // No bars for this step yet
+
+                // Get bars, ensuring they are sorted by their *current* index within the step's array
+                // This is crucial for correctly mapping comparison/movement indices.
+                const currentStepArray = this.arrays[this.currentStep];
+                 if (!currentStepArray || currentStepArray.length === 0) return;
+
+                // Find the actual bar objects corresponding to the values in the current step's array
+                // This is more robust than relying on userData.currentIndex if that wasn't updated perfectly.
+                // We need to map the index in currentStepArray to the actual bar object in the scene group.
+                const bars = currentStepArray.map(value =>
+                    currentStepGroup.children.find(bar =>
+                        bar.userData.type === 'arrayBar' && bar.userData.value === value
+                    )
+                ).filter(bar => bar !== undefined); // Filter out any not found (shouldn't happen if bars were created)
+
+
+                 if (bars.length === 0 || bars.length !== this.dataSize) {
+                     console.warn("Could not find all bars for step", this.currentStep, ". Found:", bars.length, "Expected:", this.dataSize);
+                     return;
+                 }
+
+
+                // --- 3. Show Comparisons for Current Step ---
                 const comparison = this.comparisons[this.currentStep];
                 if (this.showComparisons && comparison) {
                     // Indices in 'comparison' refer to the state *before* this step potentially changed it.
                     // We need to find the bars based on their values or track their current positions.
                     // Simplification: Assume 'comparison' indices still map correctly to the bars array *for visualization*.
                     // This might be inaccurate for sorts that drastically reorder within a step (like partition).
+                    // Let's use the 'bars' array which is ordered by the *current* state of the array.
                     this.visualizeComparison(bars, comparison, currentStepZ);
                 }
-                
-                // --- 5. Show Movements & Highlight for Current Step ---
+
+                // --- 4. Show Movements & Highlight for Current Step ---
                 const movement = this.movements[this.currentStep];
-                if (movement) { 
+                if (movement) {
                     // Indices in 'movement' refer to the state *before* this step.
                     // Similar to comparisons, assume indices map correctly for visualization.
+                    // Use the 'bars' array which is ordered by the *current* state.
                     this.visualizeMovement(bars, movement, currentStepZ, this.showMovement);
                 }
             },
 
             visualizeComparison(bars, comparison, stepZ) {
                 const [idx1, idx2] = comparison;
-                
-                // Find bars based on the indices. Need robust way if indices change mid-step.
-                // Using the sorted 'bars' array based on originalIndex is a common approach.
+
+                // Find bars based on the indices in the *current* step's array order.
                 if (idx1 >= 0 && idx1 < bars.length && idx2 >= 0 && idx2 < bars.length) {
-                    // Find the actual bar objects corresponding to these indices in the *current* group
-                    const bar1 = bars.find(b => b.userData.currentIndex === idx1); // Or use originalIndex if mapping is stable
-                    const bar2 = bars.find(b => b.userData.currentIndex === idx2); // Or use originalIndex
+                    const bar1 = bars[idx1];
+                    const bar2 = bars[idx2];
 
-                    // Fallback if currentIndex wasn't updated reliably (use direct index access)
-                    const bar1Fallback = bars[idx1];
-                    const bar2Fallback = bars[idx2];
-                    
-                    const finalBar1 = bar1 || bar1Fallback;
-                    const finalBar2 = bar2 || bar2Fallback;
-
-                    if (!finalBar1 || !finalBar2) {
+                    if (!bar1 || !bar2) {
                          console.warn("Comparison bars not found for indices:", idx1, idx2, "at step", this.currentStep);
-                         return; 
+                         return;
                     }
 
                     // Use world position for accuracy, converting bar local pos to world pos
                     const bar1Pos = new THREE.Vector3();
-                    finalBar1.getWorldPosition(bar1Pos); 
-                    bar1Pos.y += finalBar1.geometry.parameters.height / 2; // Adjust to top center
+                    bar1.getWorldPosition(bar1Pos);
+                    bar1Pos.y += bar1.geometry.parameters.height / 2; // Adjust to top center
 
                     const bar2Pos = new THREE.Vector3();
-                    finalBar2.getWorldPosition(bar2Pos);
-                    bar2Pos.y += finalBar2.geometry.parameters.height / 2; // Adjust to top center
-                    
+                    bar2.getWorldPosition(bar2Pos);
+                    bar2Pos.y += bar2.geometry.parameters.height / 2; // Adjust to top center
+
                     // Control point for the curve - higher up and between the bars
                     const controlPoint = new THREE.Vector3(
-                        (bar1Pos.x + bar2Pos.x) / 2, 
+                        (bar1Pos.x + bar2Pos.x) / 2,
                         Math.max(bar1Pos.y, bar2Pos.y) + 10 + Math.abs(bar1Pos.x - bar2Pos.x) * 0.2, // Height adjusts with distance
                         stepZ // Keep curve in the Z plane of the current step
                     );
-                    
-                    // Adjust bar positions to be relative to the scene origin if needed, or ensure curve uses world coords
-                    // Since we used getWorldPosition, bar1Pos/bar2Pos are world coords. Control point needs correct Z.
-                    
+
                     const curve = new THREE.QuadraticBezierCurve3(bar1Pos, controlPoint, bar2Pos);
-                    
+
                     const points = curve.getPoints(20);
                     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    const material = new THREE.LineBasicMaterial({ 
+                    const material = new THREE.LineBasicMaterial({
                         color: 0xffff00, // Yellow
                         linewidth: 2,    // Note: linewidth > 1 may not work on all systems/drivers
                         transparent: true,
                         opacity: 0.7
                     });
-                    
+
                     const line = new THREE.Line(geometry, material);
                     line.userData = { type: 'comparisonLine' }; // Tag for easy removal
-                    
+
                     this.scene.add(line);
                     this.comparisonLines.push(line); // Store reference
                 } else {
@@ -1507,8 +1620,8 @@
                 const [idx1, idx2] = movement; // [targetIdx, sourceIdx] or [idxA, idxB] for swap
 
                 // Find the source bar (element being moved) based on source index (idx2)
-                // Use currentIndex if available and reliable, otherwise fallback to direct index
-                const sourceBar = bars.find(b => b.userData.currentIndex === idx2) || bars[idx2];
+                // Use the 'bars' array which is ordered by the *current* state.
+                const sourceBar = bars[idx2];
 
                 if (!sourceBar) {
                     console.warn("Movement source bar not found for index:", idx2, "at step", this.currentStep);
@@ -1526,9 +1639,9 @@
                     let targetPos = new THREE.Vector3();
 
                     // Determine if this is a swap or a placement (like in Radix/Counting sort)
-                    // Simple heuristic: If idx1 and idx2 refer to existing bars in the current step, assume swap.
+                    // If idx1 refers to an existing bar in the current step, assume swap.
                     // Otherwise, assume placement where idx1 is a target position index.
-                    const targetBar = bars.find(b => b.userData.currentIndex === idx1) || bars[idx1];
+                    const targetBar = bars[idx1]; // Check if a bar exists at the target index in the current state
 
                     if (targetBar && sourceBar !== targetBar) {
                         // Assume SWAP: Target is the top-center of the target bar
@@ -1596,18 +1709,18 @@
                     this.movementTrails.push(highlightLine);
                 }
             },
-            
+
             // Main animation loop
             animate() {
                 requestAnimationFrame(() => this.animate());
-                
+
                 this.stats.begin();
-                
+
                 // Update controls (needed for damping and potentially updates lookAt)
-                this.controls.update(); 
+                this.controls.update();
 
                 // --- Camera Auto-Movement ---
-                // Only move camera automatically if not currently interacting 
+                // Only move camera automatically if not currently interacting
                 // and animation has generated steps.
                 if (!this.isUserInteracting && this.arrays.length > 1) {
                     // Smoothly interpolate camera position and target towards the calculated target
@@ -1638,7 +1751,7 @@
                      this.cameraTarget.position.copy(this.camera.position);
                      this.cameraTarget.lookAt.copy(this.controls.target);
                 }
-                
+
                 // --- Algorithm Step Advancement ---
                 if (this.isAnimating) {
                     // Calculate delay based on animation speed (higher speed = lower delay)
@@ -1646,7 +1759,7 @@
                     if (this.frame % Math.round(delayFactor) === 0) {
                         const oldStep = this.currentStep;
                         this.advanceStep(); // This increments currentStep and updates visualization
-                        
+
                         // --- Update Camera Target ---
                         // Update target only if the step actually changed and we are not interacting
                         if (oldStep !== this.currentStep && !this.isUserInteracting) {
@@ -1656,8 +1769,8 @@
                             const currentStepZ = -this.currentStep * 5;
 
                             // Adjust distance and height based on data size for better framing
-                            const cameraDistance = 60 + this.dataSize * 1.8; 
-                            const cameraHeight = 80 + this.dataSize * 0.8; 
+                            const cameraDistance = 60 + this.dataSize * 1.8;
+                            const cameraHeight = 80 + this.dataSize * 0.8;
 
                             // Set the target lookAt point (where the camera should point)
                             // Look towards the Z depth between current and upcoming steps
@@ -1665,7 +1778,7 @@
                                 0, // Look towards center X
                                 0, // Look towards base Y
                                 (currentStepZ + targetStepZ) / 2 // Look at midpoint Z
-                            ); 
+                            );
 
                             // Set the target position (where the camera should move to)
                             // Maintain a similar viewing angle relative to the lookAt point
@@ -1674,67 +1787,73 @@
                             offset.copy(this.camera.position).sub(this.controls.target); // Get current offset
                             offset.normalize().multiplyScalar(cameraDistance); // Scale offset to desired distance
 
-                            // Position camera *ahead* of the lookAt point (further negative Z)
+                            // Position camera *ahead* of the lookAt point (more negative Z)
                             this.cameraTarget.position.set(
                                 0, // Center X
                                 cameraHeight * 0.8, // Slightly lower angle than directly overhead
                                 this.cameraTarget.lookAt.z - cameraDistance * 0.9 // Position AHEAD (more negative Z)
-                            ); 
-                            
+                            );
+
                             // Alternative: Maintain current horizontal angle but position ahead
                             // let currentAngle = Math.atan2(this.camera.position.x - this.controls.target.x, this.camera.position.z - this.controls.target.z);
                             // this.cameraTarget.position.set(
-                            //     this.cameraTarget.lookAt.x + Math.sin(currentAngle) * cameraDistance * 0.8, 
-                            //     cameraHeight, 
+                            //     this.cameraTarget.lookAt.x + Math.sin(currentAngle) * cameraDistance * 0.8,
+                            //     cameraHeight,
                             //     this.cameraTarget.lookAt.z + Math.cos(currentAngle) * cameraDistance * 0.8
-                            // ); 
+                            // );
 
                         }
                     }
                     this.frame++;
                 }
-                
+
                 // Render scene
                 this.renderer.render(this.scene, this.camera);
-                
+
                 this.stats.end();
             },
-            
+
             // Reset the visualization
             reset() {
                 this.isAnimating = false;
                 this.isUserInteracting = false; // Reset interaction flag
                 this.currentStep = 0;
                 this.frame = 0;
-                
+
                 // Clear existing visualization
                 this.clearVisualization();
-                
+
                 // Reset arrays and tracking data
                 this.arrays = [];
                 this.comparisons = [];
                 this.movements = [];
                 this.algorithmSteps = [];
-                
+
                 // Generate new data
                 this.generateData();
-                
+
+                // Reset slider
+                const slider = document.getElementById('stepSlider');
+                slider.max = 0;
+                slider.value = 0;
+                document.getElementById('currentStepDisplay').textContent = "0/0";
+
                 // Reset camera target to initial 'ahead' view
                 const initialCamPos = new THREE.Vector3(0, 80, -50);
                 const initialLookAt = new THREE.Vector3(0, 0, -70);
                 this.cameraTarget.position.copy(initialCamPos);
                 this.cameraTarget.lookAt.copy(initialLookAt);
-                
+
                 // Force immediate camera reset without interpolation
                 this.camera.position.copy(this.cameraTarget.position);
                 this.camera.lookAt(this.cameraTarget.lookAt);
                 this.controls.target.copy(this.cameraTarget.lookAt);
                 this.controls.update();
             },
-            
+
             frame: 0
         };
-        
+
         // Initialize the application with error handling
         window.addEventListener('load', () => {
             try {
