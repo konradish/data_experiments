@@ -18,6 +18,13 @@ Renders sorting algorithms in 3D space, with time as the third dimension (Z-axis
 
 A more traditional view showing sorting algorithms step-by-step. Each row represents the state of the array after an operation, scrolling downwards as the sort progresses. Useful for observing the sequence of comparisons and swaps directly.
 
+### 2D & 3D Grid Path-Finding Visualizers
+Interactive grids that let you step through **BFS**, **DFS** and custom
+search code.  A built-in code editor (Ace/Monaco) lets you tweak the
+algorithm live in JavaScript *or* Python (via Pyodide + WASM).  The 3-D
+view uses **Three.js GridHelper** with a post-processing bloom pass for a
+subtle neon-glow aesthetic. 🔦
+
 **Features:**
 - **3D Time Progression**: Watch sorting algorithms evolve along the Z-axis
 - **Multiple Algorithms**: Bubble Sort, Insertion Sort, Selection Sort, Quick Sort, Merge Sort, Radix Sort
