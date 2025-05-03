@@ -259,14 +259,12 @@ bfs_custom; // Return the function`);
                 // Note: This still has security implications if the code is untrusted.
                 // For a safer approach, consider web workers or sandboxing libraries.
                 const userCode = editor.getValue();
-                const algoFn = new Function('grid', 'start', 'goal', 'visit', `
-                    // Provide access to imported functions if needed, carefully
-                    // const bfs = ${bfs.toString()}; // Example - might not work due to scope/imports
-                    // const dfs = ${dfs.toString()};
-                    ${userCode}
-                    // Assuming the last expression is the function to run
-                    return typeof bfs_custom !== 'undefined' ? bfs_custom : null;
-                `)(); // Immediately invoke to get the function defined inside
+                // Escape any back-ticks that occur inside the editor code so the Function
+                // constructor doesn’t break.
+                const safeUserCode = userCode.replace(/`/g, '\\`');
+                const funcSrc =  safeUserCode +
+                                '\nreturn (typeof bfs_custom === "function") ? bfs_custom : null;';
+                const algoFn = new Function('grid', 'start', 'goal', 'visit', funcSrc)();   // immediately invoked
 
                 if (typeof algoFn === 'function') {
                      // Run the user's function - it should handle its own timing/async
@@ -344,7 +342,7 @@ except Exception as e:
 
         // Add basic obstacle drawing on click
         cvs.addEventListener('click', (e) => {
-            if (app.isAnimating) return; // Don't modify while running
+            if (currentAlgorithmInterval) return; // Don't modify while an algorithm is running
 
             const rect = cvs.getBoundingClientRect();
             const x = e.clientX - rect.left;

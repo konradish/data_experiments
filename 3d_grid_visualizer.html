@@ -24,13 +24,7 @@
     <!-- Three.js core library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- OrbitControls -->
-    <script>
-        // Inline OrbitControls code from 3d_sorting_visualizer.html or load via CDN/module
-        // Example: <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-        // Make sure THREE.OrbitControls is available before the main script runs.
-        // For brevity, assuming OrbitControls is loaded globally or included inline.
-        // Copy the OrbitControls code block from 3d_sorting_visualizer.html here if needed.
-    </script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- Post Processing Libraries (Example CDNs - verify versions) -->
     <!-- You MUST include these or equivalent for BloomEffect to work -->
     <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
@@ -79,7 +73,7 @@
         const GRID_DIVISIONS = 40; // Number of cells
         const CELL_SIZE = GRID_SIZE / GRID_DIVISIONS;
         const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x00ffff, 0x444444);
-        gridHelper.position.y = -0.01; // Slightly below objects
+        gridHelper.position.y = 0; // Position at origin
         scene.add(gridHelper);
 
         // Grid state (logical) - Adapt dimensions as needed
