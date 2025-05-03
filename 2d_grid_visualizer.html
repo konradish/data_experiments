@@ -44,7 +44,8 @@ function bfs_custom(grid, start, goal, visit) {
       }
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
           const nx = x + dx, ny = y + dy, key = `${nx},${ny}`;
-          if (grid[nx]?.[ny] === 1 && !seen.has(key)) { // Check if walkable (1)
+          // Replace optional chaining with standard checks for compatibility
+          if (grid[nx] !== undefined && grid[nx][ny] !== undefined && grid[nx][ny] === 1 && !seen.has(key)) { // Check if walkable (1)
               seen.add(key);
               q.push([nx,ny]);
               visit(nx, ny, 'visiting'); // Mark as visiting

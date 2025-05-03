@@ -72,7 +72,8 @@
         const GRID_SIZE = 40; // World units
         const GRID_DIVISIONS = 40; // Number of cells
         const CELL_SIZE = GRID_SIZE / GRID_DIVISIONS;
-        const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x00ffff, 0x444444);
+        // Use brighter colors for the grid lines
+        const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x00ff00, 0x888888); // Bright Green and Light Grey
         gridHelper.position.y = 0; // Position at origin
         scene.add(gridHelper);
 
