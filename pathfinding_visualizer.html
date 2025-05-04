@@ -167,6 +167,10 @@
         .cell.frontier {
             background-color: #9C27B0; /* Purple */
         }
+        .cell.excluded {
+            background-color: #333333; /* Dark gray */
+            opacity: 0.5;
+        }
 
         @keyframes visitedAnimation {
             0% {
@@ -360,6 +364,19 @@
                 });
                 document.getElementById('algorithm').addEventListener('change', (e) => {
                     this.algorithm = e.target.value;
+                    // Hide end point for binary search algorithms
+                    if (this.algorithm === 'binary1d' || this.algorithm === 'binary2d') {
+                        if (this.endCell) {
+                            this.endCell.classList.remove('end');
+                            this.endCell = null;
+                        }
+                    } else if (!this.endCell) {
+                        // Restore end point if switching away from binary search
+                        const endRow = Math.floor(3 * this.gridSize / 4);
+                        const endCol = Math.floor(3 * this.gridSize / 4);
+                        this.endCell = this.cells[endRow][endCol];
+                        this.endCell.classList.add('end');
+                    }
                 });
                 
                 document.getElementById('gridSize').addEventListener('change', (e) => {
@@ -510,7 +527,22 @@
                 for (let row = 0; row < this.gridSize; row++) {
                     for (let col = 0; col < this.gridSize; col++) {
                         const cell = this.cells[row][col];
-                        cell.classList.remove('visited', 'path', 'current', 'frontier');
+                        cell.classList.remove('visited', 'path', 'current', 'frontier', 'excluded');
+                    }
+                }
+            },
+
+            excludeRange(startRow, endRow, startCol, endCol) {
+                for (let row = startRow; row <= endRow; row++) {
+                    for (let col = startCol; col <= endCol; col++) {
+                        if (row >= 0 && row < this.gridSize && 
+                            col >= 0 && col < this.gridSize) {
+                            const cell = this.cells[row][col];
+                            if (!cell.classList.contains('start') && 
+                                !cell.classList.contains('end')) {
+                                cell.classList.add('excluded');
+                            }
+                        }
                     }
                 }
             },
@@ -647,6 +679,17 @@
             
             // Binary Search 1D algorithm
             binarySearch1D(startRow, startCol, endRow, endCol) {
+                // Clear any existing excluded ranges
+                this.clearPath();
+                
+                // For 1D binary search, exclude all but the middle row initially
+                const activeRow = Math.floor(this.gridSize / 2);
+                for (let row = 0; row < this.gridSize; row++) {
+                    if (row !== activeRow) {
+                        this.excludeRange(row, row, 0, this.gridSize - 1);
+                    }
+                }
+
                 // Convert grid to 1D array sorted by position (left-to-right, top-to-bottom)
                 const array = [];
                 for (let row = 0; row < this.gridSize; row++) {
@@ -711,8 +754,32 @@
                     
                     // Binary search logic
                     if (value < targetValue) {
+                        // Exclude left half
+                        const excludeStart = 0;
+                        const excludeEnd = mid;
+                        for (let i = excludeStart; i <= excludeEnd; i++) {
+                            const {row, col} = sortedArray[i];
+                            animationSteps.push({
+                                type: 'exclude',
+                                row,
+                                col,
+                                message: `Excluding left half (${value} < ${targetValue})`
+                            });
+                        }
                         left = mid + 1;
                     } else {
+                        // Exclude right half
+                        const excludeStart = mid;
+                        const excludeEnd = sortedArray.length - 1;
+                        for (let i = excludeStart; i <= excludeEnd; i++) {
+                            const {row, col} = sortedArray[i];
+                            animationSteps.push({
+                                type: 'exclude',
+                                row,
+                                col,
+                                message: `Excluding right half (${value} > ${targetValue})`
+                            });
+                        }
                         right = mid - 1;
                     }
                 }
@@ -1329,6 +1396,11 @@
                         case 'path':
                             cell.classList.remove('visited', 'current', 'frontier');
                             cell.classList.add('path');
+                            break;
+                        case 'exclude':
+                            if (!cell.classList.contains('start')) {
+                                cell.classList.add('excluded');
+                            }
                             break;
                     }
                     
