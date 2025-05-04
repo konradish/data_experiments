@@ -312,7 +312,9 @@
             'dfs': 'pathfinding_algorithms/dfs.js',
             'dijkstra': 'pathfinding_algorithms/dijkstra.js',
             'astar': 'pathfinding_algorithms/astar.js',
-            'greedy': 'pathfinding_algorithms/greedy.js'
+            'greedy': 'pathfinding_algorithms/greedy.js',
+            'binary1d': 'pathfinding_algorithms/binary1d.js',
+            'binary2d': 'pathfinding_algorithms/binary2d.js'
         };
         // Main application
         const app = {
@@ -549,6 +551,13 @@
                         editor.setValue(code);
                         // Move cursor to start
                         editor.setPosition({ lineNumber: 1, column: 1 });
+                        // Highlight that binary search requires sorted data
+                        if (algorithm.includes('binary')) {
+                            editor.setValue(editor.getValue() + 
+                                '\n\n// NOTE: Binary search requires a sorted grid!\n' +
+                                '// The visualization will sort the grid by position\n' +
+                                '// (left-to-right, top-to-bottom) for this algorithm.');
+                        }
                     }
                 } catch (error) {
                     console.error('Error loading algorithm:', error);
@@ -638,60 +647,81 @@
             
             // Binary Search 1D algorithm
             binarySearch1D(startRow, startCol, endRow, endCol) {
-                // Convert grid to 1D array
+                // Convert grid to 1D array sorted by position (left-to-right, top-to-bottom)
                 const array = [];
                 for (let row = 0; row < this.gridSize; row++) {
                     for (let col = 0; col < this.gridSize; col++) {
                         array.push({
                             row,
                             col,
-                            value: row * this.gridSize + col // Simple value based on position
+                            value: row * this.gridSize + col, // Position-based value
+                            isWall: this.cells[row][col].classList.contains('wall')
                         });
                     }
                 }
                 
-                // Sort array by value
-                array.sort((a, b) => a.value - b.value);
+                // Sort array by value and filter out walls
+                const sortedArray = array
+                    .filter(item => !item.isWall)
+                    .sort((a, b) => a.value - b.value);
                 
-                const targetValue = Math.floor((this.gridSize * this.gridSize) / 2); // Middle value
+                if (sortedArray.length === 0) {
+                    console.log("No valid cells to search (all walls)");
+                    return;
+                }
+
+                // Target is middle value of sorted array
+                const targetValue = sortedArray[Math.floor(sortedArray.length / 2)].value;
                 let left = 0;
-                let right = array.length - 1;
+                let right = sortedArray.length - 1;
                 const animationSteps = [];
                 
                 while (left <= right) {
                     const mid = Math.floor((left + right) / 2);
-                    const {row, col} = array[mid];
+                    const {row, col, value} = sortedArray[mid];
                     
-                    // Add current mid point to animation
+                    // Highlight current midpoint
                     animationSteps.push({
                         type: 'current',
                         row,
-                        col
+                        col,
+                        message: `Searching at (${row},${col}) value=${value}`
                     });
                     
                     // Check if we found the target
-                    if (row === endRow && col === endCol) {
+                    if (value === targetValue) {
                         animationSteps.push({
                             type: 'path',
                             row,
-                            col
+                            col,
+                            message: `Found target at (${row},${col})`
                         });
-                        this.animateSteps(animationSteps);
-                        return;
+                        break;
                     }
                     
                     // Mark as visited
                     animationSteps.push({
                         type: 'visited',
                         row,
-                        col
+                        col,
+                        message: value < targetValue ? 
+                            `${value} < ${targetValue} → search right` :
+                            `${value} > ${targetValue} → search left`
                     });
                     
                     // Binary search logic
-                    if (array[mid].value < targetValue) {
+                    if (value < targetValue) {
                         left = mid + 1;
                     } else {
                         right = mid - 1;
+                    }
+                }
+                
+                // Show search summary
+                if (animationSteps.length > 0) {
+                    const lastStep = animationSteps[animationSteps.length-1];
+                    if (lastStep.type !== 'path') {
+                        lastStep.message = `Target ${targetValue} not found`;
                     }
                 }
                 
@@ -700,44 +730,80 @@
 
             // Binary Search 2D algorithm
             binarySearch2D(startRow, startCol, endRow, endCol) {
+                // Treat grid as sorted row-wise (each row is sorted left-to-right,
+                // and rows are sorted top-to-bottom)
                 let top = 0;
                 let bottom = this.gridSize - 1;
                 const targetCol = Math.floor(this.gridSize / 2);
                 const animationSteps = [];
                 
+                // Calculate target value (middle of grid)
+                const targetValue = Math.floor((this.gridSize * this.gridSize) / 2);
+                
                 while (top <= bottom) {
                     const midRow = Math.floor((top + bottom) / 2);
+                    const cellValue = midRow * this.gridSize + targetCol;
                     
-                    // Add current mid point to animation
+                    // Skip walls by adjusting search bounds
+                    if (this.cells[midRow][targetCol].classList.contains('wall')) {
+                        animationSteps.push({
+                            type: 'visited',
+                            row: midRow,
+                            col: targetCol,
+                            message: `Wall at (${midRow},${targetCol}) - skipping`
+                        });
+                        
+                        // Decide which direction to search based on value
+                        if (cellValue < targetValue) {
+                            top = midRow + 1;
+                        } else {
+                            bottom = midRow - 1;
+                        }
+                        continue;
+                    }
+                    
+                    // Highlight current midpoint
                     animationSteps.push({
                         type: 'current',
                         row: midRow,
-                        col: targetCol
+                        col: targetCol,
+                        message: `Searching row ${midRow} (value=${cellValue})`
                     });
                     
-                    // Check if we found the target
-                    if (midRow === endRow && targetCol === endCol) {
+                    // Check if we found the target region
+                    if (cellValue === targetValue) {
                         animationSteps.push({
                             type: 'path',
                             row: midRow,
-                            col: targetCol
+                            col: targetCol,
+                            message: `Found target at (${midRow},${targetCol})`
                         });
-                        this.animateSteps(animationSteps);
-                        return;
+                        break;
                     }
                     
                     // Mark as visited
                     animationSteps.push({
                         type: 'visited',
                         row: midRow,
-                        col: targetCol
+                        col: targetCol,
+                        message: cellValue < targetValue ? 
+                            `${cellValue} < ${targetValue} → search lower rows` :
+                            `${cellValue} > ${targetValue} → search higher rows`
                     });
                     
                     // Binary search logic
-                    if (midRow * this.gridSize + targetCol < (this.gridSize * this.gridSize) / 2) {
+                    if (cellValue < targetValue) {
                         top = midRow + 1;
                     } else {
                         bottom = midRow - 1;
+                    }
+                }
+                
+                // Show search summary
+                if (animationSteps.length > 0) {
+                    const lastStep = animationSteps[animationSteps.length-1];
+                    if (lastStep.type !== 'path') {
+                        lastStep.message = `Target row not found`;
                     }
                 }
                 
@@ -1212,6 +1278,7 @@
                 
                 let i = 0;
                 const delay = 1000 / (this.animationSpeed * 5); // Adjust speed
+                const infoPanel = document.getElementById('info');
                 
                 const animate = () => {
                     if (i >= steps.length || !this.isAnimating) {
@@ -1221,6 +1288,19 @@
                     
                     const step = steps[i];
                     const cell = this.cells[step.row][step.col];
+                    
+                    // Update info panel with search message if present
+                    if (step.message && infoPanel) {
+                        const messageDiv = infoPanel.querySelector('.search-message') || 
+                            document.createElement('div');
+                        messageDiv.className = 'search-message';
+                        messageDiv.textContent = step.message;
+                        messageDiv.style.color = '#FFD54F';
+                        messageDiv.style.marginTop = '10px';
+                        if (!infoPanel.querySelector('.search-message')) {
+                            infoPanel.querySelector('.collapsible-content').appendChild(messageDiv);
+                        }
+                    }
                     
                     // Skip animation for start and end cells
                     if (cell.classList.contains('start') || cell.classList.contains('end')) {
