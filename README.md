@@ -25,6 +25,9 @@ algorithm live in JavaScript *or* Python (via Pyodide + WASM).  The 3-D
 view uses **Three.js GridHelper** with a post-processing bloom pass for a
 subtle neon-glow aesthetic. 🔦
 
+### 2D Pathfinding Algorithm Visualizer
+A dedicated visualization for pathfinding algorithms on a 2D grid. Features multiple algorithms including **Breadth-First Search**, **Depth-First Search**, **Dijkstra's Algorithm**, **A* Search**, and **Greedy Best-First Search**. Includes interactive controls for placing walls, moving start/end points, and generating random mazes.
+
 **Features:**
 - **3D Time Progression**: Watch sorting algorithms evolve along the Z-axis
 - **Multiple Algorithms**: Bubble Sort, Insertion Sort, Selection Sort, Quick Sort, Merge Sort, Radix Sort
@@ -33,6 +36,10 @@ subtle neon-glow aesthetic. 🔦
 - **Movement Tracking**: Shows how elements move (3D: arcs, 2D: outlines)
 - **Interactive Controls**: Adjust visualization parameters in real-time
 - **Smart Camera**: Camera follows the sorting progression for optimal viewing
+- **Pathfinding Visualization**: Interactive grid for visualizing pathfinding algorithms
+- **Multiple Pathfinding Algorithms**: BFS, DFS, Dijkstra's, A*, and Greedy Best-First Search
+- **Maze Generation**: Create random mazes with adjustable wall density
+- **Interactive Grid**: Click to place walls, drag to move start/end points
 
 ## Machine Learning Potential
 

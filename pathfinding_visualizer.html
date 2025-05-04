@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Pathfinding Algorithm Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        #controlsContainer {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 5px;
+            background: #2c2c2c;
+            border-bottom: 1px solid #444;
+            z-index: 100;
+        }
+        #info, #controls {
+            background: #333;
+            color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px;
+            flex: 1;
+            min-width: 250px;
+            max-width: 400px;
+        }
+        select, button {
+            margin: 5px 0;
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #555;
+            color: #f0f0f0;
+            border: 1px solid #777;
+            border-radius: 3px;
+        }
+        button:hover {
+            background-color: #666;
+        }
+        input[type="checkbox"], input[type="range"] {
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px;
+            background: #444;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .collapsible-header::after { content: '[-]'; font-weight: bold; margin-left: 10px; }
+        .collapsed .collapsible-header::after { content: '[+]'; }
+        .collapsed .collapsible-content { display: none; }
+
+        #visualizationContainer {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            background: #222;
+            overflow: auto;
+        }
+        #grid {
+            display: grid;
+            gap: 1px;
+            background-color: #333;
+            padding: 1px;
+            border-radius: 3px;
+        }
+        .cell {
+            width: 25px;
+            height: 25px;
+            background-color: #444;
+            border-radius: 2px;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+        .cell:hover {
+            background-color: #555;
+        }
+        .cell.start {
+            background-color: #4CAF50; /* Green */
+        }
+        .cell.end {
+            background-color: #F44336; /* Red */
+        }
+        .cell.wall {
+            background-color: #212121; /* Dark gray */
+        }
+        .cell.visited {
+            background-color: #7986CB; /* Light blue/purple */
+            animation: visitedAnimation 1.5s ease;
+        }
+        .cell.path {
+            background-color: #FFD54F; /* Yellow */
+            animation: pathAnimation 1.5s ease;
+        }
+        .cell.current {
+            background-color: #29B6F6; /* Bright blue */
+        }
+        .cell.frontier {
+            background-color: #9C27B0; /* Purple */
+        }
+
+        @keyframes visitedAnimation {
+            0% {
+                transform: scale(0.3);
+                background-color: #2196F3;
+                border-radius: 100%;
+            }
+            50% {
+                background-color: #7986CB;
+            }
+            75% {
+                transform: scale(1.2);
+                background-color: #7986CB;
+            }
+            100% {
+                transform: scale(1);
+                background-color: #7986CB;
+            }
+        }
+
+        @keyframes pathAnimation {
+            0% {
+                transform: scale(0.6);
+                background-color: #FFC107;
+            }
+            50% {
+                transform: scale(1.2);
+                background-color: #FFD54F;
+            }
+            100% {
+                transform: scale(1);
+                background-color: #FFD54F;
+            }
+        }
+
+        /* Mobile Styles */
+        @media (max-width: 600px) {
+            #controlsContainer { flex-direction: column; }
+            #info, #controls { max-width: none; width: auto; }
+            .cell { width: 20px; height: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="controlsContainer">
+        <div id="info">
+            <h4 class="collapsible-header">Info / Help</h4>
+            <div class="collapsible-content">
+                <h2>2D Pathfinding Visualization</h2>
+                <p>This visualization demonstrates various pathfinding algorithms on a 2D grid.</p>
+                <ul>
+                    <li><strong>Green:</strong> Start node</li>
+                    <li><strong>Red:</strong> End node</li>
+                    <li><strong>Dark Gray:</strong> Wall (obstacle)</li>
+                    <li><strong>Blue/Purple:</strong> Visited nodes</li>
+                    <li><strong>Yellow:</strong> Final path</li>
+                    <li><strong>Bright Blue:</strong> Current node being processed</li>
+                    <li><strong>Purple:</strong> Frontier nodes (next to be processed)</li>
+                </ul>
+                <p>Click on the grid to place/remove walls. Drag start/end nodes to reposition.</p>
+            </div>
+        </div>
+        <div id="controls">
+            <h4 class="collapsible-header">Controls</h4>
+            <div class="collapsible-content">
+                <h3>Settings</h3>
+                <select id="algorithm">
+                    <option value="bfs">Breadth-First Search</option>
+                    <option value="dfs">Depth-First Search</option>
+                    <option value="dijkstra">Dijkstra's Algorithm</option>
+                    <option value="astar">A* Search</option>
+                    <option value="greedy">Greedy Best-First Search</option>
+                </select>
+                <select id="gridSize">
+                    <option value="10">10x10 Grid</option>
+                    <option value="15">15x15 Grid</option>
+                    <option value="20" selected>20x20 Grid</option>
+                    <option value="30">30x30 Grid</option>
+                    <option value="40">40x40 Grid</option>
+                </select>
+                <button id="startBtn">Start Pathfinding</button>
+                <button id="resetBtn">Reset Grid</button>
+                <button id="clearPathBtn">Clear Path</button>
+                <button id="generateMazeBtn">Generate Maze</button>
+                <div>
+                    <label><input type="checkbox" id="showVisited" checked> Show Visited Nodes</label>
+                </div>
+                <div>
+                    <label><input type="checkbox" id="showFrontier" checked> Show Frontier</label>
+                </div>
+                <div>
+                    <label>Animation Speed: <input type="range" id="speed" min="1" max="10" value="5"></label>
+                </div>
+                <div>
+                    <label>Wall Density (for maze): <input type="range" id="wallDensity" min="1" max="10" value="3"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="visualizationContainer">
+        <div id="grid"></div>
+    </div>
+
+    <script>
+        // Main application
+        const app = {
+            grid: null,
+            gridSize: 20,
+            cells: [],
+            startCell: null,
+            endCell: null,
+            isAnimating: false,
+            algorithm: 'bfs',
+            animationSpeed: 5,
+            showVisited: true,
+            showFrontier: true,
+            wallDensity: 3,
+            isDragging: false,
+            draggedCellType: null,
+            
+            init() {
+                this.grid = document.getElementById('grid');
+                
+                // Initialize event listeners
+                this.initEventListeners();
+                
+                // Create initial grid
+                this.createGrid(this.gridSize);
+            },
+            
+            initEventListeners() {
+                document.getElementById('algorithm').addEventListener('change', (e) => {
+                    this.algorithm = e.target.value;
+                });
+                
+                document.getElementById('gridSize').addEventListener('change', (e) => {
+                    this.gridSize = parseInt(e.target.value);
+                    this.resetGrid();
+                });
+                
+                document.getElementById('startBtn').addEventListener('click', () => {
+                    if (!this.isAnimating && this.startCell && this.endCell) {
+                        this.clearPath();
+                        this.runPathfinding();
+                    }
+                });
+                
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.resetGrid();
+                });
+                
+                document.getElementById('clearPathBtn').addEventListener('click', () => {
+                    this.clearPath();
+                });
+                
+                document.getElementById('generateMazeBtn').addEventListener('click', () => {
+                    this.generateMaze();
+                });
+                
+                document.getElementById('showVisited').addEventListener('change', (e) => {
+                    this.showVisited = e.target.checked;
+                });
+                
+                document.getElementById('showFrontier').addEventListener('change', (e) => {
+                    this.showFrontier = e.target.checked;
+                });
+                
+                document.getElementById('speed').addEventListener('input', (e) => {
+                    this.animationSpeed = parseInt(e.target.value);
+                });
+                
+                document.getElementById('wallDensity').addEventListener('input', (e) => {
+                    this.wallDensity = parseInt(e.target.value);
+                });
+                
+                // Add listeners for collapsible panels
+                document.querySelectorAll('.collapsible-header').forEach(header => {
+                    header.addEventListener('click', () => {
+                        header.parentElement.classList.toggle('collapsed');
+                    });
+                });
+                
+                // Start panels collapsed on smaller screens (mobile)
+                if (window.innerWidth <= 768) {
+                    const infoPanel = document.getElementById('info');
+                    const controlsPanel = document.getElementById('controls');
+                    if (infoPanel) infoPanel.classList.add('collapsed');
+                    if (controlsPanel) controlsPanel.classList.add('collapsed');
+                }
+            },
+            
+            createGrid(size) {
+                // Clear existing grid
+                this.grid.innerHTML = '';
+                this.cells = [];
+                
+                // Set grid template
+                this.grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+                this.grid.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+                
+                // Create cells
+                for (let row = 0; row < size; row++) {
+                    this.cells[row] = [];
+                    for (let col = 0; col < size; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+                        
+                        // Add event listeners for cell interaction
+                        cell.addEventListener('mousedown', (e) => {
+                            e.preventDefault(); // Prevent text selection during drag
+                            
+                            if (cell.classList.contains('start')) {
+                                this.isDragging = true;
+                                this.draggedCellType = 'start';
+                            } else if (cell.classList.contains('end')) {
+                                this.isDragging = true;
+                                this.draggedCellType = 'end';
+                            } else {
+                                // Toggle wall
+                                cell.classList.toggle('wall');
+                            }
+                        });
+                        
+                        cell.addEventListener('mouseenter', () => {
+                            if (this.isDragging) {
+                                if (this.draggedCellType === 'start' && !cell.classList.contains('end') && !cell.classList.contains('wall')) {
+                                    // Move start node
+                                    if (this.startCell) {
+                                        this.startCell.classList.remove('start');
+                                    }
+                                    cell.classList.add('start');
+                                    this.startCell = cell;
+                                } else if (this.draggedCellType === 'end' && !cell.classList.contains('start') && !cell.classList.contains('wall')) {
+                                    // Move end node
+                                    if (this.endCell) {
+                                        this.endCell.classList.remove('end');
+                                    }
+                                    cell.classList.add('end');
+                                    this.endCell = cell;
+                                }
+                            }
+                        });
+                        
+                        this.grid.appendChild(cell);
+                        this.cells[row][col] = cell;
+                    }
+                }
+                
+                // Add mouseup event to document to handle drag end
+                document.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                    this.draggedCellType = null;
+                });
+                
+                // Set initial start and end positions
+                const startRow = Math.floor(size / 4);
+                const startCol = Math.floor(size / 4);
+                const endRow = Math.floor(3 * size / 4);
+                const endCol = Math.floor(3 * size / 4);
+                
+                this.startCell = this.cells[startRow][startCol];
+                this.startCell.classList.add('start');
+                
+                this.endCell = this.cells[endRow][endCol];
+                this.endCell.classList.add('end');
+            },
+            
+            resetGrid() {
+                this.isAnimating = false;
+                this.createGrid(this.gridSize);
+            },
+            
+            clearPath() {
+                if (this.isAnimating) {
+                    this.isAnimating = false;
+                    return;
+                }
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const cell = this.cells[row][col];
+                        cell.classList.remove('visited', 'path', 'current', 'frontier');
+                    }
+                }
+            },
+            
+            generateMaze() {
+                this.clearPath();
+                
+                // Clear existing walls
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        this.cells[row][col].classList.remove('wall');
+                    }
+                }
+                
+                // Generate random walls based on density
+                const wallProbability = this.wallDensity / 20; // Scale 1-10 to 0.05-0.5 probability
+                
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        const cell = this.cells[row][col];
+                        
+                        // Don't place walls on start or end cells
+                        if (!cell.classList.contains('start') && !cell.classList.contains('end')) {
+                            if (Math.random() < wallProbability) {
+                                cell.classList.add('wall');
+                            }
+                        }
+                    }
+                }
+            },
+            
+            runPathfinding() {
+                if (this.isAnimating) return;
+                this.isAnimating = true;
+                
+                // Get start and end positions
+                const startRow = parseInt(this.startCell.dataset.row);
+                const startCol = parseInt(this.startCell.dataset.col);
+                const endRow = parseInt(this.endCell.dataset.row);
+                const endCol = parseInt(this.endCell.dataset.col);
+                
+                // Run selected algorithm
+                switch (this.algorithm) {
+                    case 'bfs':
+                        this.breadthFirstSearch(startRow, startCol, endRow, endCol);
+                        break;
+                    case 'dfs':
+                        this.depthFirstSearch(startRow, startCol, endRow, endCol);
+                        break;
+                    case 'dijkstra':
+                        this.dijkstra(startRow, startCol, endRow, endCol);
+                        break;
+                    case 'astar':
+                        this.aStar(startRow, startCol, endRow, endCol);
+                        break;
+                    case 'greedy':
+                        this.greedyBestFirstSearch(startRow, startCol, endRow, endCol);
+                        break;
+                }
+            },
+            
+            // Breadth-First Search algorithm
+            breadthFirstSearch(startRow, startCol, endRow, endCol) {
+                const queue = [{row: startRow, col: startCol, path: []}];
+                const visited = new Set();
+                const animationSteps = [];
+                
+                // Mark start as visited
+                visited.add(`${startRow},${startCol}`);
+                
+                while (queue.length > 0) {
+                    const current = queue.shift();
+                    const {row, col, path} = current;
+                    
+                    // Add current cell to animation steps
+                    animationSteps.push({
+                        type: 'current',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Check if we reached the end
+                    if (row === endRow && col === endCol) {
+                        // Add path to animation steps
+                        for (const pos of path) {
+                            animationSteps.push({
+                                type: 'path',
+                                row: pos.row,
+                                col: pos.col
+                            });
+                        }
+                        
+                        // Add end cell to path
+                        animationSteps.push({
+                            type: 'path',
+                            row: row,
+                            col: col
+                        });
+                        
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark current as visited
+                    animationSteps.push({
+                        type: 'visited',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Get neighbors
+                    const neighbors = this.getNeighbors(row, col);
+                    
+                    // Add frontier cells to animation
+                    for (const neighbor of neighbors) {
+                        const {row: nRow, col: nCol} = neighbor;
+                        const key = `${nRow},${nCol}`;
+                        
+                        if (!visited.has(key)) {
+                            visited.add(key);
+                            
+                            // Add to frontier animation
+                            animationSteps.push({
+                                type: 'frontier',
+                                row: nRow,
+                                col: nCol
+                            });
+                            
+                            // Add to queue with updated path
+                            const newPath = [...path, {row, col}];
+                            queue.push({row: nRow, col: nCol, path: newPath});
+                        }
+                    }
+                }
+                
+                // No path found
+                this.animateSteps(animationSteps);
+            },
+            
+            // Depth-First Search algorithm
+            depthFirstSearch(startRow, startCol, endRow, endCol) {
+                const stack = [{row: startRow, col: startCol, path: []}];
+                const visited = new Set();
+                const animationSteps = [];
+                
+                while (stack.length > 0) {
+                    const current = stack.pop();
+                    const {row, col, path} = current;
+                    const key = `${row},${col}`;
+                    
+                    if (visited.has(key)) continue;
+                    
+                    // Mark as visited
+                    visited.add(key);
+                    
+                    // Add current cell to animation steps
+                    animationSteps.push({
+                        type: 'current',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Check if we reached the end
+                    if (row === endRow && col === endCol) {
+                        // Add path to animation steps
+                        for (const pos of path) {
+                            animationSteps.push({
+                                type: 'path',
+                                row: pos.row,
+                                col: pos.col
+                            });
+                        }
+                        
+                        // Add end cell to path
+                        animationSteps.push({
+                            type: 'path',
+                            row: row,
+                            col: col
+                        });
+                        
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark current as visited in animation
+                    animationSteps.push({
+                        type: 'visited',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Get neighbors
+                    const neighbors = this.getNeighbors(row, col);
+                    
+                    // Add neighbors to stack in reverse order (to prioritize up, left, down, right)
+                    for (let i = neighbors.length - 1; i >= 0; i--) {
+                        const neighbor = neighbors[i];
+                        const {row: nRow, col: nCol} = neighbor;
+                        const nKey = `${nRow},${nCol}`;
+                        
+                        if (!visited.has(nKey)) {
+                            // Add to frontier animation
+                            animationSteps.push({
+                                type: 'frontier',
+                                row: nRow,
+                                col: nCol
+                            });
+                            
+                            // Add to stack with updated path
+                            const newPath = [...path, {row, col}];
+                            stack.push({row: nRow, col: nCol, path: newPath});
+                        }
+                    }
+                }
+                
+                // No path found
+                this.animateSteps(animationSteps);
+            },
+            
+            // Dijkstra's algorithm
+            dijkstra(startRow, startCol, endRow, endCol) {
+                // Priority queue implementation using array
+                const queue = [{row: startRow, col: startCol, cost: 0, path: []}];
+                const visited = new Set();
+                const costs = {};
+                const animationSteps = [];
+                
+                // Set initial cost
+                costs[`${startRow},${startCol}`] = 0;
+                
+                while (queue.length > 0) {
+                    // Sort queue by cost (priority queue behavior)
+                    queue.sort((a, b) => a.cost - b.cost);
+                    
+                    const current = queue.shift();
+                    const {row, col, cost, path} = current;
+                    const key = `${row},${col}`;
+                    
+                    if (visited.has(key)) continue;
+                    
+                    // Mark as visited
+                    visited.add(key);
+                    
+                    // Add current cell to animation steps
+                    animationSteps.push({
+                        type: 'current',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Check if we reached the end
+                    if (row === endRow && col === endCol) {
+                        // Add path to animation steps
+                        for (const pos of path) {
+                            animationSteps.push({
+                                type: 'path',
+                                row: pos.row,
+                                col: pos.col
+                            });
+                        }
+                        
+                        // Add end cell to path
+                        animationSteps.push({
+                            type: 'path',
+                            row: row,
+                            col: col
+                        });
+                        
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark current as visited in animation
+                    animationSteps.push({
+                        type: 'visited',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Get neighbors
+                    const neighbors = this.getNeighbors(row, col);
+                    
+                    for (const neighbor of neighbors) {
+                        const {row: nRow, col: nCol} = neighbor;
+                        const nKey = `${nRow},${nCol}`;
+                        
+                        // Each step costs 1
+                        const newCost = cost + 1;
+                        
+                        if (!costs[nKey] || newCost < costs[nKey]) {
+                            costs[nKey] = newCost;
+                            
+                            // Add to frontier animation
+                            animationSteps.push({
+                                type: 'frontier',
+                                row: nRow,
+                                col: nCol
+                            });
+                            
+                            // Add to queue with updated path and cost
+                            const newPath = [...path, {row, col}];
+                            queue.push({row: nRow, col: nCol, cost: newCost, path: newPath});
+                        }
+                    }
+                }
+                
+                // No path found
+                this.animateSteps(animationSteps);
+            },
+            
+            // A* Search algorithm
+            aStar(startRow, startCol, endRow, endCol) {
+                // Priority queue implementation using array
+                const openSet = [{row: startRow, col: startCol, f: 0, g: 0, path: []}];
+                const closedSet = new Set();
+                const gScores = {};
+                const animationSteps = [];
+                
+                // Set initial g score
+                gScores[`${startRow},${startCol}`] = 0;
+                
+                while (openSet.length > 0) {
+                    // Sort by f score (priority queue behavior)
+                    openSet.sort((a, b) => a.f - b.f);
+                    
+                    const current = openSet.shift();
+                    const {row, col, g, path} = current;
+                    const key = `${row},${col}`;
+                    
+                    if (closedSet.has(key)) continue;
+                    
+                    // Add to closed set
+                    closedSet.add(key);
+                    
+                    // Add current cell to animation steps
+                    animationSteps.push({
+                        type: 'current',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Check if we reached the end
+                    if (row === endRow && col === endCol) {
+                        // Add path to animation steps
+                        for (const pos of path) {
+                            animationSteps.push({
+                                type: 'path',
+                                row: pos.row,
+                                col: pos.col
+                            });
+                        }
+                        
+                        // Add end cell to path
+                        animationSteps.push({
+                            type: 'path',
+                            row: row,
+                            col: col
+                        });
+                        
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark current as visited in animation
+                    animationSteps.push({
+                        type: 'visited',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Get neighbors
+                    const neighbors = this.getNeighbors(row, col);
+                    
+                    for (const neighbor of neighbors) {
+                        const {row: nRow, col: nCol} = neighbor;
+                        const nKey = `${nRow},${nCol}`;
+                        
+                        if (closedSet.has(nKey)) continue;
+                        
+                        // Calculate g score (cost from start)
+                        const tentativeG = g + 1;
+                        
+                        // If this path to neighbor is better than any previous one
+                        if (!gScores[nKey] || tentativeG < gScores[nKey]) {
+                            gScores[nKey] = tentativeG;
+                            
+                            // Calculate h score (heuristic - Manhattan distance to end)
+                            const h = Math.abs(nRow - endRow) + Math.abs(nCol - endCol);
+                            
+                            // Calculate f score (g + h)
+                            const f = tentativeG + h;
+                            
+                            // Add to frontier animation
+                            animationSteps.push({
+                                type: 'frontier',
+                                row: nRow,
+                                col: nCol
+                            });
+                            
+                            // Add to open set with updated path and scores
+                            const newPath = [...path, {row, col}];
+                            openSet.push({row: nRow, col: nCol, g: tentativeG, f: f, path: newPath});
+                        }
+                    }
+                }
+                
+                // No path found
+                this.animateSteps(animationSteps);
+            },
+            
+            // Greedy Best-First Search algorithm
+            greedyBestFirstSearch(startRow, startCol, endRow, endCol) {
+                // Priority queue implementation using array
+                const openSet = [{row: startRow, col: startCol, h: 0, path: []}];
+                const closedSet = new Set();
+                const animationSteps = [];
+                
+                while (openSet.length > 0) {
+                    // Sort by heuristic (priority queue behavior)
+                    openSet.sort((a, b) => a.h - b.h);
+                    
+                    const current = openSet.shift();
+                    const {row, col, path} = current;
+                    const key = `${row},${col}`;
+                    
+                    if (closedSet.has(key)) continue;
+                    
+                    // Add to closed set
+                    closedSet.add(key);
+                    
+                    // Add current cell to animation steps
+                    animationSteps.push({
+                        type: 'current',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Check if we reached the end
+                    if (row === endRow && col === endCol) {
+                        // Add path to animation steps
+                        for (const pos of path) {
+                            animationSteps.push({
+                                type: 'path',
+                                row: pos.row,
+                                col: pos.col
+                            });
+                        }
+                        
+                        // Add end cell to path
+                        animationSteps.push({
+                            type: 'path',
+                            row: row,
+                            col: col
+                        });
+                        
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark current as visited in animation
+                    animationSteps.push({
+                        type: 'visited',
+                        row: row,
+                        col: col
+                    });
+                    
+                    // Get neighbors
+                    const neighbors = this.getNeighbors(row, col);
+                    
+                    for (const neighbor of neighbors) {
+                        const {row: nRow, col: nCol} = neighbor;
+                        const nKey = `${nRow},${nCol}`;
+                        
+                        if (closedSet.has(nKey)) continue;
+                        
+                        // Calculate h score (heuristic - Manhattan distance to end)
+                        const h = Math.abs(nRow - endRow) + Math.abs(nCol - endCol);
+                        
+                        // Add to frontier animation
+                        animationSteps.push({
+                            type: 'frontier',
+                            row: nRow,
+                            col: nCol
+                        });
+                        
+                        // Add to open set with updated path and heuristic
+                        const newPath = [...path, {row, col}];
+                        openSet.push({row: nRow, col: nCol, h: h, path: newPath});
+                    }
+                }
+                
+                // No path found
+                this.animateSteps(animationSteps);
+            },
+            
+            // Get valid neighbors for a cell
+            getNeighbors(row, col) {
+                const neighbors = [];
+                const directions = [
+                    {row: -1, col: 0}, // Up
+                    {row: 0, col: 1},  // Right
+                    {row: 1, col: 0},  // Down
+                    {row: 0, col: -1}  // Left
+                ];
+                
+                for (const dir of directions) {
+                    const newRow = row + dir.row;
+                    const newCol = col + dir.col;
+                    
+                    // Check if within grid bounds
+                    if (newRow >= 0 && newRow < this.gridSize && newCol >= 0 && newCol < this.gridSize) {
+                        const cell = this.cells[newRow][newCol];
+                        
+                        // Check if not a wall and not the start cell
+                        if (!cell.classList.contains('wall')) {
+                            neighbors.push({row: newRow, col: newCol});
+                        }
+                    }
+                }
+                
+                return neighbors;
+            },
+            
+            // Animate the steps of the algorithm
+            animateSteps(steps) {
+                if (!this.isAnimating) return;
+                
+                let i = 0;
+                const delay = 1000 / (this.animationSpeed * 5); // Adjust speed
+                
+                const animate = () => {
+                    if (i >= steps.length || !this.isAnimating) {
+                        this.isAnimating = false;
+                        return;
+                    }
+                    
+                    const step = steps[i];
+                    const cell = this.cells[step.row][step.col];
+                    
+                    // Skip animation for start and end cells
+                    if (cell.classList.contains('start') || cell.classList.contains('end')) {
+                        i++;
+                        requestAnimationFrame(animate);
+                        return;
+                    }
+                    
+                    // Apply appropriate class based on step type
+                    switch (step.type) {
+                        case 'current':
+                            cell.classList.remove('frontier');
+                            cell.classList.add('current');
+                            break;
+                        case 'visited':
+                            if (this.showVisited) {
+                                cell.classList.remove('current');
+                                cell.classList.add('visited');
+                            }
+                            break;
+                        case 'frontier':
+                            if (this.showFrontier && !cell.classList.contains('visited') && !cell.classList.contains('current')) {
+                                cell.classList.add('frontier');
+                            }
+                            break;
+                        case 'path':
+                            cell.classList.remove('visited', 'current', 'frontier');
+                            cell.classList.add('path');
+                            break;
+                    }
+                    
+                    i++;
+                    setTimeout(animate, delay);
+                };
+                
+                animate();
+            }
+        };
+        
+        // Initialize the application
+        window.addEventListener('load', () => {
+            try {
+                app.init();
+            } catch (e) {
+                console.error("Application initialization failed:", e);
+                const errorDiv = document.createElement('div');
+                errorDiv.textContent = `Initialization Error: ${e.message}. Check console.`;
+                errorDiv.style.color = 'red';
+                errorDiv.style.padding = '20px';
+                document.body.prepend(errorDiv);
+            }
+        });
+    </script>
+</body>
+</html>
