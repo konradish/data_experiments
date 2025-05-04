@@ -287,12 +287,21 @@
         
         require(['vs/editor/editor.main'], function() {
             editor = monaco.editor.create(document.getElementById('editor'), {
-                value: '// Select an algorithm to see its code\n// You can modify and run it!',
+                value: '// Loading BFS algorithm...',
                 language: 'javascript',
                 theme: 'vs-dark',
                 automaticLayout: true,
                 minimap: { enabled: false }
             });
+            
+            // Load BFS by default
+            fetch('pathfinding_algorithms/bfs.js')
+                .then(response => response.text())
+                .then(code => editor.setValue(code))
+                .catch(error => {
+                    console.error('Error loading BFS:', error);
+                    editor.setValue('// Error loading BFS algorithm');
+                });
         });
 
         // Algorithm file paths
@@ -534,7 +543,11 @@
                     const response = await fetch(algorithmFiles[algorithm]);
                     if (!response.ok) throw new Error('Failed to load algorithm');
                     const code = await response.text();
-                    if (editor) editor.setValue(code);
+                    if (editor) {
+                        editor.setValue(code);
+                        // Move cursor to start
+                        editor.setPosition({ lineNumber: 1, column: 1 });
+                    }
                 } catch (error) {
                     console.error('Error loading algorithm:', error);
                     editor.setValue(`// Error loading algorithm: ${error.message}`);
