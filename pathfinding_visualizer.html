@@ -70,20 +70,23 @@
         #visualizationContainer {
             flex-grow: 1;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            background: #222;
-            overflow: auto;
-        }
-        #visualizationContainer {
-            display: flex;
             flex-direction: row;
             gap: 10px;
+            padding: 10px;
+            background: #222;
+            overflow: hidden;
+            height: calc(100vh - 200px); /* Account for controls height */
         }
         
         #grid {
             flex: 1;
+            min-width: 0; /* Allow grid to shrink */
+            display: grid;
+            gap: 1px;
+            background-color: #333;
+            padding: 1px;
+            border-radius: 3px;
+            overflow: auto;
         }
         
         #editorContainer {
@@ -91,6 +94,7 @@
             display: flex;
             flex-direction: column;
             min-width: 400px;
+            max-width: 50%;
             background: #1e1e1e;
             border-radius: 5px;
             overflow: hidden;
@@ -128,12 +132,6 @@
                 min-width: auto;
                 height: 300px;
             }
-        }
-            display: grid;
-            gap: 1px;
-            background-color: #333;
-            padding: 1px;
-            border-radius: 3px;
         }
         .cell {
             width: 25px;
