@@ -239,6 +239,8 @@
                     <option value="dijkstra">Dijkstra's Algorithm</option>
                     <option value="astar">A* Search</option>
                     <option value="greedy">Greedy Best-First Search</option>
+                    <option value="binary1d">1D Binary Search</option>
+                    <option value="binary2d">2D Binary Search</option>
                 </select>
                 <select id="gridSize">
                     <option value="10">10x10 Grid</option>
@@ -563,6 +565,15 @@
                 const startCol = parseInt(this.startCell.dataset.col);
                 const endRow = parseInt(this.endCell.dataset.row);
                 const endCol = parseInt(this.endCell.dataset.col);
+
+                // For binary search, force end node to be middle of grid
+                if (this.algorithm === 'binary1d' || this.algorithm === 'binary2d') {
+                    const midRow = Math.floor(this.gridSize / 2);
+                    const midCol = Math.floor(this.gridSize / 2);
+                    this.endCell.classList.remove('end');
+                    this.endCell = this.cells[midRow][midCol];
+                    this.endCell.classList.add('end');
+                }
                 
                 // Try to execute custom code first
                 try {
@@ -598,6 +609,12 @@
                     case 'greedy':
                         this.greedyBestFirstSearch(startRow, startCol, endRow, endCol);
                         break;
+                    case 'binary1d':
+                        this.binarySearch1D(startRow, startCol, endRow, endCol);
+                        break;
+                    case 'binary2d':
+                        this.binarySearch2D(startRow, startCol, endRow, endCol);
+                        break;
                 }
             },
 
@@ -619,6 +636,114 @@
                 return gridNodes;
             },
             
+            // Binary Search 1D algorithm
+            binarySearch1D(startRow, startCol, endRow, endCol) {
+                // Convert grid to 1D array
+                const array = [];
+                for (let row = 0; row < this.gridSize; row++) {
+                    for (let col = 0; col < this.gridSize; col++) {
+                        array.push({
+                            row,
+                            col,
+                            value: row * this.gridSize + col // Simple value based on position
+                        });
+                    }
+                }
+                
+                // Sort array by value
+                array.sort((a, b) => a.value - b.value);
+                
+                const targetValue = Math.floor((this.gridSize * this.gridSize) / 2); // Middle value
+                let left = 0;
+                let right = array.length - 1;
+                const animationSteps = [];
+                
+                while (left <= right) {
+                    const mid = Math.floor((left + right) / 2);
+                    const {row, col} = array[mid];
+                    
+                    // Add current mid point to animation
+                    animationSteps.push({
+                        type: 'current',
+                        row,
+                        col
+                    });
+                    
+                    // Check if we found the target
+                    if (row === endRow && col === endCol) {
+                        animationSteps.push({
+                            type: 'path',
+                            row,
+                            col
+                        });
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark as visited
+                    animationSteps.push({
+                        type: 'visited',
+                        row,
+                        col
+                    });
+                    
+                    // Binary search logic
+                    if (array[mid].value < targetValue) {
+                        left = mid + 1;
+                    } else {
+                        right = mid - 1;
+                    }
+                }
+                
+                this.animateSteps(animationSteps);
+            },
+
+            // Binary Search 2D algorithm
+            binarySearch2D(startRow, startCol, endRow, endCol) {
+                let top = 0;
+                let bottom = this.gridSize - 1;
+                const targetCol = Math.floor(this.gridSize / 2);
+                const animationSteps = [];
+                
+                while (top <= bottom) {
+                    const midRow = Math.floor((top + bottom) / 2);
+                    
+                    // Add current mid point to animation
+                    animationSteps.push({
+                        type: 'current',
+                        row: midRow,
+                        col: targetCol
+                    });
+                    
+                    // Check if we found the target
+                    if (midRow === endRow && targetCol === endCol) {
+                        animationSteps.push({
+                            type: 'path',
+                            row: midRow,
+                            col: targetCol
+                        });
+                        this.animateSteps(animationSteps);
+                        return;
+                    }
+                    
+                    // Mark as visited
+                    animationSteps.push({
+                        type: 'visited',
+                        row: midRow,
+                        col: targetCol
+                    });
+                    
+                    // Binary search logic
+                    if (midRow * this.gridSize + targetCol < (this.gridSize * this.gridSize) / 2) {
+                        top = midRow + 1;
+                    } else {
+                        bottom = midRow - 1;
+                    }
+                }
+                
+                this.animateSteps(animationSteps);
+            },
+
             // Breadth-First Search algorithm
             breadthFirstSearch(startRow, startCol, endRow, endCol) {
                 const queue = [{row: startRow, col: startCol, path: []}];
