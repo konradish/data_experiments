@@ -243,6 +243,26 @@
             font-size: clamp(0.95rem, 2vw, 1rem);
             line-height: 1.6;
         }
+
+        .preview-image {
+            margin-top: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            transition: var(--transition);
+        }
+
+        .preview-image img {
+            display: block;
+            width: 100%;
+            height: auto;
+            transition: var(--transition);
+        }
+
+        .visualization:hover .preview-image {
+            transform: scale(1.02);
+        }
         
         /* Animations */
         @keyframes fadeInUp {
@@ -327,19 +347,29 @@
                     <h3><a href="3d_sorting_visualizer.html">3D Sorting Algorithm Visualizer</a></h3>
                     <p>Visualize various sorting algorithms in three dimensions. Watch as the data transforms through space
                     while different sorting methods arrange the elements in order.</p>
+                    <div class="preview-image">
+                        <img src="preview/3dsort.gif" alt="3D Sorting Visualization" loading="lazy" width="100%">
+                    </div>
                 </article>
-                
+
                 <article class="visualization">
                     <h3><a href="2d_sorting_visualizer.html">2D Sorting Algorithm Visualizer</a></h3>
                     <p>A classic two-dimensional representation of sorting algorithms. Compare the efficiency and patterns
                     of different sorting methods in a clear, visual format.</p>
+                    <div class="preview-image">
+                        <img src="preview/2dsort.gif" alt="2D Sorting Visualization" loading="lazy" width="100%">
+                    </div>
                 </article>
-                
+
                 <article class="visualization">
                     <h3><a href="pathfinding_visualizer.html">2D Pathfinding Algorithm Visualizer</a></h3>
                     <p>Explore how different pathfinding algorithms like A*, Dijkstra, BFS, and DFS navigate through
                     a two-dimensional grid to find the optimal path between points.</p>
+                    <div class="preview-image">
+                        <img src="preview/pathfind.gif" alt="Pathfinding Visualization" loading="lazy" width="100%">
+                    </div>
                 </article>
+
             </div>
         </section>
     </div>
